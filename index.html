@@ -18,7 +18,6 @@
       --warning: #f59e0b;
       --danger: #ef4444;
       --purple: #a78bfa;
-      --dark-text: #111827;
       --shadow: 0 20px 60px rgba(0,0,0,0.35);
       --radius: 20px;
     }
@@ -53,7 +52,7 @@
 
     .hero {
       display: grid;
-      grid-template-columns: 1.4fr 0.6fr;
+      grid-template-columns: 1.35fr 0.65fr;
       gap: 18px;
       align-items: stretch;
       margin-bottom: 18px;
@@ -106,7 +105,7 @@
 
     .hero-copy {
       margin: 14px 0 0;
-      max-width: 780px;
+      max-width: 820px;
       color: var(--muted);
       font-size: 16px;
       line-height: 1.55;
@@ -152,6 +151,44 @@
       margin-top: 4px;
     }
 
+    .view-switch {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .view-card {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 16px;
+      cursor: pointer;
+      transition: 0.18s ease;
+    }
+
+    .view-card:hover {
+      transform: translateY(-1px);
+      border-color: rgba(56, 189, 248, 0.70);
+    }
+
+    .view-card.active {
+      background: rgba(56, 189, 248, 0.18);
+      border-color: rgba(56, 189, 248, 0.80);
+    }
+
+    .view-card h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .view-card p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
     .toolbar {
       display: flex;
       justify-content: space-between;
@@ -177,6 +214,10 @@
       cursor: pointer;
       font-weight: 700;
       transition: 0.18s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .tab-btn:hover,
@@ -444,15 +485,6 @@
       margin-bottom: 10px;
     }
 
-    .task-meta {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      color: var(--muted);
-      font-size: 13px;
-      margin-top: 10px;
-    }
-
     .table-wrap {
       overflow-x: auto;
       border: 1px solid var(--line);
@@ -513,6 +545,43 @@
       margin-top: 6px;
     }
 
+    .link-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .portal-link {
+      text-decoration: none;
+      color: var(--text);
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.07);
+      border-radius: 18px;
+      padding: 16px;
+      transition: 0.18s ease;
+      min-height: 118px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .portal-link:hover {
+      transform: translateY(-2px);
+      border-color: rgba(56,189,248,0.7);
+    }
+
+    .portal-link strong {
+      display: block;
+      font-size: 17px;
+      margin-bottom: 7px;
+    }
+
+    .portal-link span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
     .link-card a {
       color: #7dd3fc;
       word-break: break-word;
@@ -541,8 +610,20 @@
       border-color: rgba(56,189,248,0.7);
     }
 
-    .print-only {
-      display: none;
+    .manager-only.hidden,
+    .specialist-hidden.hidden {
+      display: none !important;
+    }
+
+    .readonly-banner {
+      border: 1px solid rgba(56,189,248,0.35);
+      background: rgba(56,189,248,0.12);
+      color: #bae6fd;
+      padding: 12px 14px;
+      border-radius: 16px;
+      margin-bottom: 18px;
+      font-weight: 700;
+      line-height: 1.45;
     }
 
     .modal {
@@ -610,7 +691,8 @@
       .grid.four,
       .grid.three,
       .quick-links,
-      .summary-strip {
+      .summary-strip,
+      .link-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
@@ -635,7 +717,9 @@
       .grid.three,
       .grid.four,
       .quick-links,
-      .summary-strip {
+      .summary-strip,
+      .link-grid,
+      .view-switch {
         grid-template-columns: 1fr;
       }
 
@@ -681,7 +765,8 @@
       .btn,
       .tabs,
       .toast,
-      .modal {
+      .modal,
+      .view-switch {
         display: none !important;
       }
 
@@ -713,10 +798,6 @@
       th {
         color: #374151;
       }
-
-      .print-only {
-        display: block;
-      }
     }
   </style>
 </head>
@@ -724,12 +805,12 @@
   <div class="app-shell">
     <div class="hero">
       <section class="hero-main">
-        <div class="eyebrow">Inventory Control Team</div>
-        <h1>Daily labor, assignments, tasks, notes, and team links in one place.</h1>
-        <p class="hero-copy">
-          Use this page as your inventory team command board. Add team members, assign daily work, track labor hours, log notes, save important links, and print a clean daily snapshot.
+        <div class="eyebrow" id="viewEyebrow">Manager View</div>
+        <h1 id="heroTitle">Inventory Team Command Page</h1>
+        <p class="hero-copy" id="heroCopy">
+          Set up the team, assign daily work, track labor, keep notes, and give the IC Specialist view a clean task screen.
         </p>
-        <div class="hero-actions">
+        <div class="hero-actions manager-only">
           <button class="btn primary" onclick="openModal('memberModal')">Add Team Member</button>
           <button class="btn success" onclick="openModal('taskModal')">Add Task</button>
           <button class="btn warning" onclick="printPage()">Print Daily Page</button>
@@ -755,17 +836,32 @@
       </aside>
     </div>
 
+    <div class="view-switch">
+      <div id="managerViewCard" class="view-card active" onclick="setView('manager')">
+        <h3>Manager View</h3>
+        <p>Full setup access for team members, tasks, labor, notes, links, backups, and reports.</p>
+      </div>
+      <div id="specialistViewCard" class="view-card" onclick="setView('specialist')">
+        <h3>IC Specialist View</h3>
+        <p>Clean working view for task visibility, daily notes, labor reference, and IC links.</p>
+      </div>
+    </div>
+
+    <div id="specialistBanner" class="readonly-banner" style="display:none;">
+      IC Specialist View is read-only for setup items. Use this screen to see assigned work, notes, labor, and inventory links.
+    </div>
+
     <div class="toolbar">
-      <div class="tabs">
-        <button class="tab-btn active" onclick="showSection('dashboard', this)">Dashboard</button>
-        <button class="tab-btn" onclick="showSection('team', this)">Team</button>
-        <button class="tab-btn" onclick="showSection('tasks', this)">Tasks</button>
-        <button class="tab-btn" onclick="showSection('labor', this)">Daily Labor</button>
-        <button class="tab-btn" onclick="showSection('notes', this)">Notes</button>
-        <button class="tab-btn" onclick="showSection('links', this)">Links</button>
+      <div class="tabs" id="tabsContainer">
+        <button class="tab-btn active" data-section="dashboard" onclick="showSection('dashboard', this)">Dashboard</button>
+        <button class="tab-btn manager-tab" data-section="team" onclick="showSection('team', this)">Team</button>
+        <button class="tab-btn" data-section="tasks" onclick="showSection('tasks', this)">Tasks</button>
+        <button class="tab-btn" data-section="labor" onclick="showSection('labor', this)">Daily Labor</button>
+        <button class="tab-btn" data-section="notes" onclick="showSection('notes', this)">Notes</button>
+        <button class="tab-btn" data-section="links" onclick="showSection('links', this)">Links</button>
       </div>
 
-      <div class="hero-actions">
+      <div class="hero-actions manager-only">
         <button class="btn small" onclick="exportData()">Export Backup</button>
         <button class="btn small" onclick="document.getElementById('importFile').click()">Import Backup</button>
         <input id="importFile" type="file" accept="application/json" style="display:none" onchange="importData(event)" />
@@ -777,10 +873,21 @@
       <div class="panel">
         <div class="panel-title">
           <div>
+            <h2>Team Links</h2>
+            <p id="teamLinksDescription">Manager view includes IC Portal, Pick Shortages, and Returns.</p>
+          </div>
+        </div>
+
+        <div class="link-grid" id="requiredPortalLinks"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <div>
             <h2>Today’s Snapshot</h2>
             <p>A fast view of who is assigned, what is open, and what needs attention.</p>
           </div>
-          <button class="btn small" onclick="seedSampleData()">Load Example Setup</button>
+          <button class="btn small manager-only" onclick="seedSampleData()">Load Example Setup</button>
         </div>
 
         <div class="summary-strip">
@@ -805,15 +912,13 @@
             <strong id="sumNotes">0</strong>
           </div>
         </div>
-
-        <div class="quick-links" id="quickLinks"></div>
       </div>
 
       <div class="panel">
         <div class="panel-title">
           <div>
             <h2>Assignment Board</h2>
-            <p>Tasks are grouped by status so you can see the day clearly.</p>
+            <p>Tasks are grouped by status so the day is easy to read.</p>
           </div>
         </div>
         <div class="task-board">
@@ -844,7 +949,7 @@
             <h2>Team Members</h2>
             <p>Add names, roles, shifts, skills, and notes for each team member.</p>
           </div>
-          <button class="btn primary" onclick="openModal('memberModal')">Add Team Member</button>
+          <button class="btn primary manager-only" onclick="openModal('memberModal')">Add Team Member</button>
         </div>
         <div id="memberList" class="card-list"></div>
       </div>
@@ -857,7 +962,7 @@
             <h2>Tasks and Assignments</h2>
             <p>Create daily assignments, set priority, assign work, and track status.</p>
           </div>
-          <button class="btn success" onclick="openModal('taskModal')">Add Task</button>
+          <button class="btn success manager-only" onclick="openModal('taskModal')">Add Task</button>
         </div>
 
         <div class="grid three" style="margin-bottom: 14px;">
@@ -889,7 +994,7 @@
 
     <section id="labor" class="section">
       <div class="daily-layout">
-        <div class="panel">
+        <div class="panel manager-only">
           <div class="panel-title">
             <div>
               <h2>Log Labor</h2>
@@ -964,7 +1069,7 @@
                   <th>Hours</th>
                   <th>Output</th>
                   <th>Notes</th>
-                  <th>Actions</th>
+                  <th class="manager-only">Actions</th>
                 </tr>
               </thead>
               <tbody id="laborTable"></tbody>
@@ -983,7 +1088,7 @@
           </div>
         </div>
 
-        <form id="noteForm" onsubmit="saveNote(event)" style="margin-bottom: 16px;">
+        <form id="noteForm" class="manager-only" onsubmit="saveNote(event)" style="margin-bottom: 16px;">
           <input type="hidden" id="noteId" />
           <div class="grid three">
             <div>
@@ -1026,12 +1131,14 @@
       <div class="panel">
         <div class="panel-title">
           <div>
-            <h2>Team Links</h2>
-            <p>Save links to portals, sheets, reports, SOPs, dashboards, and tools.</p>
+            <h2>Links</h2>
+            <p>The main inventory links are locked into each view. Manager can add more links below.</p>
           </div>
         </div>
 
-        <form id="linkForm" onsubmit="saveLink(event)" style="margin-bottom: 16px;">
+        <div class="link-grid" id="linksPageRequiredLinks" style="margin-bottom: 16px;"></div>
+
+        <form id="linkForm" class="manager-only" onsubmit="saveLink(event)" style="margin-bottom: 16px;">
           <input type="hidden" id="linkId" />
           <div class="grid three">
             <div>
@@ -1088,7 +1195,7 @@
           </div>
           <div>
             <label for="memberRole">Role</label>
-            <input id="memberRole" type="text" placeholder="IC Team, Outbound Clerk, Lead..." required />
+            <input id="memberRole" type="text" placeholder="IC Team, IC Specialist, Outbound Clerk..." required />
           </div>
           <div>
             <label for="memberShift">Shift</label>
@@ -1189,7 +1296,30 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    const STORAGE_KEY = "inventoryTeamCommandPage_v1";
+    const STORAGE_KEY = "inventoryTeamCommandPage_v2";
+
+    const requiredLinks = [
+      {
+        id: "icPortal",
+        name: "Inventory Control Portal",
+        url: "https://phocas88.github.io/Chapman_Inventory_Control_Portal/",
+        description: "Open IC tickets, reports, and inventory control workflow."
+      },
+      {
+        id: "pickShortages",
+        name: "Pick Shortages",
+        url: "https://phocas88.github.io/pick_shortages/",
+        description: "Open shortage tracking and shortage research page."
+      },
+      {
+        id: "returns",
+        name: "Returns",
+        url: "https://phocas88.github.io/ChapmanReturns/",
+        description: "Manager access for returns workflow."
+      }
+    ];
+
+    let currentView = "manager";
 
     let state = {
       members: [],
@@ -1212,11 +1342,20 @@
 
     function loadState() {
       const saved = localStorage.getItem(STORAGE_KEY);
+      const oldSaved = localStorage.getItem("inventoryTeamCommandPage_v1");
+
       if (saved) {
         try {
           state = JSON.parse(saved);
         } catch (error) {
           console.error("Unable to load saved page data", error);
+        }
+      } else if (oldSaved) {
+        try {
+          state = JSON.parse(oldSaved);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (error) {
+          console.error("Unable to migrate old saved page data", error);
         }
       }
 
@@ -1224,6 +1363,7 @@
       document.getElementById("laborFilterDate").value = today;
       document.getElementById("noteDate").value = today;
 
+      setView("manager");
       renderAll();
     }
 
@@ -1238,6 +1378,7 @@
     }
 
     function openModal(id) {
+      if (currentView !== "manager") return;
       document.getElementById(id).classList.add("active");
     }
 
@@ -1245,7 +1386,49 @@
       document.getElementById(id).classList.remove("active");
     }
 
+    function setView(view) {
+      currentView = view;
+
+      document.getElementById("managerViewCard").classList.toggle("active", view === "manager");
+      document.getElementById("specialistViewCard").classList.toggle("active", view === "specialist");
+
+      document.getElementById("specialistBanner").style.display = view === "specialist" ? "block" : "none";
+
+      document.querySelectorAll(".manager-only").forEach(element => {
+        element.classList.toggle("hidden", view !== "manager");
+      });
+
+      document.querySelectorAll(".manager-tab").forEach(element => {
+        element.style.display = view === "manager" ? "inline-flex" : "none";
+      });
+
+      if (view === "manager") {
+        document.getElementById("viewEyebrow").textContent = "Manager View";
+        document.getElementById("heroTitle").textContent = "Inventory Team Command Page";
+        document.getElementById("heroCopy").textContent = "Set up the team, assign daily work, track labor, keep notes, and manage team links from one place.";
+        document.getElementById("teamLinksDescription").textContent = "Manager view includes IC Portal, Pick Shortages, and Returns.";
+      } else {
+        document.getElementById("viewEyebrow").textContent = "IC Specialist View";
+        document.getElementById("heroTitle").textContent = "IC Specialist Daily Board";
+        document.getElementById("heroCopy").textContent = "View assigned tasks, check notes, review labor information, and open the inventory tools needed for the day.";
+        document.getElementById("teamLinksDescription").textContent = "IC Specialist view includes IC Portal and Pick Shortages.";
+      }
+
+      const activeSection = document.querySelector(".section.active");
+      if (view === "specialist" && activeSection && activeSection.id === "team") {
+        const dashboardTab = document.querySelector('[data-section="dashboard"]');
+        showSection("dashboard", dashboardTab);
+      }
+
+      renderAll();
+    }
+
     function showSection(sectionId, button) {
+      if (currentView === "specialist" && sectionId === "team") {
+        sectionId = "dashboard";
+        button = document.querySelector('[data-section="dashboard"]');
+      }
+
       document.querySelectorAll(".section").forEach(section => {
         section.classList.remove("active");
       });
@@ -1292,9 +1475,15 @@
       return member ? member.name : "Unassigned";
     }
 
+    function getVisibleRequiredLinks() {
+      if (currentView === "manager") return requiredLinks;
+      return requiredLinks.filter(link => link.id !== "returns");
+    }
+
     function renderAll() {
       renderMetrics();
       renderSelects();
+      renderRequiredLinks();
       renderMembers();
       renderTasks();
       renderTaskBoard();
@@ -1330,6 +1519,23 @@
       document.getElementById("colCompleted").textContent = completed;
     }
 
+    function renderRequiredLinks() {
+      const visibleLinks = getVisibleRequiredLinks();
+
+      const html = visibleLinks.map(link => `
+        <a class="portal-link" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">
+          <div>
+            <strong>${escapeHtml(link.name)}</strong>
+            <span>${escapeHtml(link.description)}</span>
+          </div>
+          <span>${escapeHtml(link.url)}</span>
+        </a>
+      `).join("");
+
+      document.getElementById("requiredPortalLinks").innerHTML = html;
+      document.getElementById("linksPageRequiredLinks").innerHTML = html;
+    }
+
     function renderSelects() {
       const memberOptions = [
         '<option value="">Unassigned</option>',
@@ -1356,7 +1562,7 @@
       const list = document.getElementById("memberList");
 
       if (!state.members.length) {
-        list.innerHTML = '<div class="empty">No team members yet. Add your IC team, outbound clerk, leads, or support roles.</div>';
+        list.innerHTML = '<div class="empty">No team members yet. Add your IC team, IC Specialist, outbound clerk, leads, or support roles.</div>';
         return;
       }
 
@@ -1372,7 +1578,7 @@
                 ${member.phone ? `<span class="badge">${escapeHtml(member.phone)}</span>` : ""}
               </div>
             </div>
-            <div class="card-actions">
+            <div class="card-actions manager-only ${currentView !== "manager" ? "hidden" : ""}">
               <button class="btn small" onclick="editMember('${member.id}')">Edit</button>
               <button class="btn danger small" onclick="deleteMember('${member.id}')">Delete</button>
             </div>
@@ -1384,6 +1590,7 @@
 
     function saveMember(event) {
       event.preventDefault();
+      if (currentView !== "manager") return;
 
       const id = document.getElementById("memberId").value;
       const member = {
@@ -1410,6 +1617,8 @@
     }
 
     function editMember(id) {
+      if (currentView !== "manager") return;
+
       const member = state.members.find(item => item.id === id);
       if (!member) return;
 
@@ -1427,6 +1636,8 @@
     }
 
     function deleteMember(id) {
+      if (currentView !== "manager") return;
+
       const confirmDelete = confirm("Delete this team member? Tasks and labor records will stay, but the name will show as unassigned if linked.");
       if (!confirmDelete) return;
 
@@ -1478,10 +1689,19 @@
         return;
       }
 
-      list.innerHTML = tasks.map(task => createTaskCard(task, true)).join("");
+      list.innerHTML = tasks.map(task => createTaskCard(task)).join("");
     }
 
-    function createTaskCard(task, showActions) {
+    function createTaskCard(task) {
+      const managerActions = currentView === "manager" ? `
+        <div class="card-actions">
+          <button class="btn small" onclick="quickStatus('${task.id}', 'In Progress')">Start</button>
+          <button class="btn success small" onclick="quickStatus('${task.id}', 'Completed')">Complete</button>
+          <button class="btn small" onclick="editTask('${task.id}')">Edit</button>
+          <button class="btn danger small" onclick="deleteTask('${task.id}')">Delete</button>
+        </div>
+      ` : "";
+
       return `
         <div class="task-card">
           <div class="card-top">
@@ -1495,14 +1715,7 @@
                 ${task.dueDate ? `<span class="badge purple">Due ${escapeHtml(task.dueDate)}</span>` : ""}
               </div>
             </div>
-            ${showActions ? `
-              <div class="card-actions">
-                <button class="btn small" onclick="quickStatus('${task.id}', 'In Progress')">Start</button>
-                <button class="btn success small" onclick="quickStatus('${task.id}', 'Completed')">Complete</button>
-                <button class="btn small" onclick="editTask('${task.id}')">Edit</button>
-                <button class="btn danger small" onclick="deleteTask('${task.id}')">Delete</button>
-              </div>
-            ` : ""}
+            ${managerActions}
           </div>
           ${task.notes ? `<p class="muted">${escapeHtml(task.notes)}</p>` : ""}
         </div>
@@ -1520,13 +1733,14 @@
       Object.keys(statusMap).forEach(status => {
         const tasks = state.tasks.filter(task => task.status === status);
         statusMap[status].innerHTML = tasks.length
-          ? tasks.map(task => createTaskCard(task, true)).join("")
+          ? tasks.map(task => createTaskCard(task)).join("")
           : '<div class="empty">None</div>';
       });
     }
 
     function saveTask(event) {
       event.preventDefault();
+      if (currentView !== "manager") return;
 
       const id = document.getElementById("taskId").value;
       const task = {
@@ -1554,6 +1768,8 @@
     }
 
     function editTask(id) {
+      if (currentView !== "manager") return;
+
       const task = state.tasks.find(item => item.id === id);
       if (!task) return;
 
@@ -1571,6 +1787,8 @@
     }
 
     function deleteTask(id) {
+      if (currentView !== "manager") return;
+
       const confirmDelete = confirm("Delete this task?");
       if (!confirmDelete) return;
 
@@ -1580,6 +1798,8 @@
     }
 
     function quickStatus(id, status) {
+      if (currentView !== "manager") return;
+
       state.tasks = state.tasks.map(task => {
         if (task.id === id) {
           return {
@@ -1606,6 +1826,7 @@
 
     function saveLabor(event) {
       event.preventDefault();
+      if (currentView !== "manager") return;
 
       const id = document.getElementById("laborId").value;
       const laborItem = {
@@ -1647,7 +1868,7 @@
       if (!labor.length) {
         table.innerHTML = `
           <tr>
-            <td colspan="7" class="muted">No labor records found for this filter.</td>
+            <td colspan="${currentView === "manager" ? "7" : "6"}" class="muted">No labor records found for this filter.</td>
           </tr>
         `;
         return;
@@ -1661,15 +1882,19 @@
           <td>${Number(item.hours || 0).toFixed(2).replace(".00", "")}</td>
           <td>${escapeHtml(item.output)}</td>
           <td>${escapeHtml(item.notes)}</td>
-          <td>
-            <button class="btn small" onclick="editLabor('${item.id}')">Edit</button>
-            <button class="btn danger small" onclick="deleteLabor('${item.id}')">Delete</button>
-          </td>
+          ${currentView === "manager" ? `
+            <td>
+              <button class="btn small" onclick="editLabor('${item.id}')">Edit</button>
+              <button class="btn danger small" onclick="deleteLabor('${item.id}')">Delete</button>
+            </td>
+          ` : ""}
         </tr>
       `).join("");
     }
 
     function editLabor(id) {
+      if (currentView !== "manager") return;
+
       const laborItem = state.labor.find(item => item.id === id);
       if (!laborItem) return;
 
@@ -1683,6 +1908,8 @@
     }
 
     function deleteLabor(id) {
+      if (currentView !== "manager") return;
+
       const confirmDelete = confirm("Delete this labor record?");
       if (!confirmDelete) return;
 
@@ -1699,6 +1926,7 @@
 
     function saveNote(event) {
       event.preventDefault();
+      if (currentView !== "manager") return;
 
       const id = document.getElementById("noteId").value;
       const note = {
@@ -1737,10 +1965,12 @@
               <h3 class="card-title">${escapeHtml(note.category)}</h3>
               <div class="card-subtitle">${escapeHtml(note.date)} ${note.ownerId ? " | Owner: " + escapeHtml(getMemberName(note.ownerId)) : ""}</div>
             </div>
-            <div class="card-actions">
-              <button class="btn small" onclick="editNote('${note.id}')">Edit</button>
-              <button class="btn danger small" onclick="deleteNote('${note.id}')">Delete</button>
-            </div>
+            ${currentView === "manager" ? `
+              <div class="card-actions">
+                <button class="btn small" onclick="editNote('${note.id}')">Edit</button>
+                <button class="btn danger small" onclick="deleteNote('${note.id}')">Delete</button>
+              </div>
+            ` : ""}
           </div>
           <p class="muted">${escapeHtml(note.text)}</p>
         </div>
@@ -1748,6 +1978,8 @@
     }
 
     function editNote(id) {
+      if (currentView !== "manager") return;
+
       const note = state.notes.find(item => item.id === id);
       if (!note) return;
 
@@ -1759,6 +1991,8 @@
     }
 
     function deleteNote(id) {
+      if (currentView !== "manager") return;
+
       const confirmDelete = confirm("Delete this note?");
       if (!confirmDelete) return;
 
@@ -1776,6 +2010,7 @@
 
     function saveLink(event) {
       event.preventDefault();
+      if (currentView !== "manager") return;
 
       const id = document.getElementById("linkId").value;
       const link = {
@@ -1799,20 +2034,13 @@
 
     function renderLinks() {
       const list = document.getElementById("linkList");
-      const quickLinks = document.getElementById("quickLinks");
 
       if (!state.links.length) {
-        list.innerHTML = '<div class="empty">No links yet. Add your IC portal, reports, SOPs, or team sheets.</div>';
-        quickLinks.innerHTML = '<div class="empty" style="grid-column: 1 / -1;">Add links and they will show here as quick launch buttons.</div>';
+        list.innerHTML = currentView === "manager"
+          ? '<div class="empty">No extra links yet. The required links are already shown above.</div>'
+          : '<div class="empty">No extra links have been added by the manager.</div>';
         return;
       }
-
-      quickLinks.innerHTML = state.links.slice(0, 8).map(link => `
-        <a class="quick-link" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">
-          ${escapeHtml(link.name)}
-          <div class="card-subtitle">${escapeHtml(link.category)}</div>
-        </a>
-      `).join("");
 
       list.innerHTML = state.links.map(link => `
         <div class="link-card">
@@ -1822,10 +2050,12 @@
               <div class="card-subtitle">${escapeHtml(link.category)}</div>
               <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.url)}</a>
             </div>
-            <div class="card-actions">
-              <button class="btn small" onclick="editLink('${link.id}')">Edit</button>
-              <button class="btn danger small" onclick="deleteLink('${link.id}')">Delete</button>
-            </div>
+            ${currentView === "manager" ? `
+              <div class="card-actions">
+                <button class="btn small" onclick="editLink('${link.id}')">Edit</button>
+                <button class="btn danger small" onclick="deleteLink('${link.id}')">Delete</button>
+              </div>
+            ` : ""}
           </div>
           ${link.description ? `<p class="muted">${escapeHtml(link.description)}</p>` : ""}
         </div>
@@ -1833,6 +2063,8 @@
     }
 
     function editLink(id) {
+      if (currentView !== "manager") return;
+
       const link = state.links.find(item => item.id === id);
       if (!link) return;
 
@@ -1844,6 +2076,8 @@
     }
 
     function deleteLink(id) {
+      if (currentView !== "manager") return;
+
       const confirmDelete = confirm("Delete this link?");
       if (!confirmDelete) return;
 
@@ -1859,6 +2093,8 @@
     }
 
     function exportData() {
+      if (currentView !== "manager") return;
+
       const data = JSON.stringify(state, null, 2);
       const blob = new Blob([data], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -1875,6 +2111,8 @@
     }
 
     function importData(event) {
+      if (currentView !== "manager") return;
+
       const file = event.target.files[0];
       if (!file) return;
 
@@ -1904,6 +2142,8 @@
     }
 
     function resetAllData() {
+      if (currentView !== "manager") return;
+
       const confirmReset = confirm("This will erase all team page data saved on this browser. Continue?");
       if (!confirmReset) return;
 
@@ -1924,6 +2164,8 @@
     }
 
     function seedSampleData() {
+      if (currentView !== "manager") return;
+
       const confirmSeed = confirm("Load example data? This will add sample members, tasks, labor, notes, and links without deleting your current data.");
       if (!confirmSeed) return;
 
@@ -1934,8 +2176,8 @@
       state.members.push(
         {
           id: memberA,
-          name: "IC Team Member",
-          role: "Inventory Control",
+          name: "IC Specialist",
+          role: "Inventory Control Specialist",
           shift: "7:00 AM to 3:30 PM",
           status: "Active",
           skills: "Cycle counts, bin research, shortage support",
@@ -2029,22 +2271,13 @@
         text: "Check blocked replenishments and shortage notes before end of shift."
       });
 
-      state.links.push(
-        {
-          id: generateId("link"),
-          name: "IC Portal",
-          url: "https://phocas88.github.io/Chapman_Inventory_Control_Portal",
-          category: "Portal",
-          description: "Jump to the inventory control ticket portal."
-        },
-        {
-          id: generateId("link"),
-          name: "GitHub Portfolio",
-          url: "https://phocas88.github.io/ruben_portfolio/",
-          category: "Dashboard",
-          description: "Portfolio page."
-        }
-      );
+      state.links.push({
+        id: generateId("link"),
+        name: "GitHub Portfolio",
+        url: "https://phocas88.github.io/ruben_portfolio/",
+        category: "Dashboard",
+        description: "Portfolio page."
+      });
 
       saveState();
       showToast("Example setup loaded");
