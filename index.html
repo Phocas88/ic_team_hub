@@ -1,0 +1,2072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventory Team Command Page</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-soft: #1f2937;
+      --card: #ffffff;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --line: rgba(255,255,255,0.12);
+      --accent: #38bdf8;
+      --accent-2: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --purple: #a78bfa;
+      --dark-text: #111827;
+      --shadow: 0 20px 60px rgba(0,0,0,0.35);
+      --radius: 20px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.20), transparent 32%),
+        radial-gradient(circle at top right, rgba(34, 197, 94, 0.16), transparent 30%),
+        linear-gradient(135deg, #020617 0%, #0f172a 45%, #111827 100%);
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font-family: inherit;
+    }
+
+    .app-shell {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.4fr 0.6fr;
+      gap: 18px;
+      align-items: stretch;
+      margin-bottom: 18px;
+    }
+
+    .hero-main,
+    .hero-side,
+    .panel {
+      border: 1px solid var(--line);
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+    }
+
+    .hero-main {
+      padding: 26px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-main:after {
+      content: "";
+      position: absolute;
+      right: -60px;
+      top: -90px;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      background: rgba(56, 189, 248, 0.14);
+      border: 1px solid rgba(56, 189, 248, 0.30);
+    }
+
+    .eyebrow {
+      color: var(--accent);
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(32px, 5vw, 58px);
+      line-height: 0.96;
+      letter-spacing: -0.05em;
+      max-width: 850px;
+    }
+
+    .hero-copy {
+      margin: 14px 0 0;
+      max-width: 780px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.55;
+    }
+
+    .hero-actions {
+      margin-top: 22px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .hero-side {
+      padding: 20px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .metric {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+
+    .metric-value {
+      font-size: 34px;
+      font-weight: 800;
+      margin-top: 8px;
+    }
+
+    .metric-note {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn,
+    .btn {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.07);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 11px 15px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: 0.18s ease;
+    }
+
+    .tab-btn:hover,
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(56, 189, 248, 0.7);
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #082f49;
+      border-color: var(--accent);
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: #082f49;
+      border-color: var(--accent);
+    }
+
+    .btn.success {
+      background: var(--accent-2);
+      color: #052e16;
+      border-color: var(--accent-2);
+    }
+
+    .btn.warning {
+      background: var(--warning);
+      color: #451a03;
+      border-color: var(--warning);
+    }
+
+    .btn.danger {
+      background: var(--danger);
+      color: #450a0a;
+      border-color: var(--danger);
+    }
+
+    .btn.small {
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+
+    .panel {
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .panel-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .panel-title h2 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: -0.02em;
+    }
+
+    .panel-title p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid.four {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px 13px;
+      outline: none;
+      min-height: 44px;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 92px;
+      line-height: 1.45;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16);
+    }
+
+    option {
+      background: #0f172a;
+      color: var(--text);
+    }
+
+    .section {
+      display: none;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    .card-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .member-card,
+    .task-card,
+    .note-card,
+    .link-card {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 800;
+      margin: 0;
+    }
+
+    .card-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 10px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 6px 9px;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.07);
+      color: var(--text);
+    }
+
+    .badge.green {
+      background: rgba(34,197,94,0.16);
+      color: #bbf7d0;
+      border-color: rgba(34,197,94,0.35);
+    }
+
+    .badge.blue {
+      background: rgba(56,189,248,0.16);
+      color: #bae6fd;
+      border-color: rgba(56,189,248,0.35);
+    }
+
+    .badge.orange {
+      background: rgba(245,158,11,0.16);
+      color: #fde68a;
+      border-color: rgba(245,158,11,0.35);
+    }
+
+    .badge.red {
+      background: rgba(239,68,68,0.16);
+      color: #fecaca;
+      border-color: rgba(239,68,68,0.35);
+    }
+
+    .badge.purple {
+      background: rgba(167,139,250,0.16);
+      color: #ddd6fe;
+      border-color: rgba(167,139,250,0.35);
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .empty {
+      border: 1px dashed rgba(255,255,255,0.22);
+      color: var(--muted);
+      padding: 22px;
+      border-radius: 18px;
+      text-align: center;
+      background: rgba(255,255,255,0.04);
+    }
+
+    .task-board {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(240px, 1fr));
+      gap: 14px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .task-column {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      border-radius: 18px;
+      padding: 12px;
+      min-height: 250px;
+    }
+
+    .task-column h3 {
+      margin: 0 0 12px;
+      font-size: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .task-card {
+      margin-bottom: 10px;
+    }
+
+    .task-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 900px;
+      background: rgba(255,255,255,0.04);
+    }
+
+    th,
+    td {
+      padding: 13px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      background: rgba(255,255,255,0.05);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .daily-layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 16px;
+    }
+
+    .summary-strip {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .summary-box {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 13px;
+    }
+
+    .summary-box strong {
+      display: block;
+      font-size: 22px;
+      margin-top: 6px;
+    }
+
+    .link-card a {
+      color: #7dd3fc;
+      word-break: break-word;
+      font-weight: 800;
+    }
+
+    .quick-links {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .quick-link {
+      text-decoration: none;
+      color: var(--text);
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 14px;
+      font-weight: 800;
+      transition: 0.18s ease;
+    }
+
+    .quick-link:hover {
+      transform: translateY(-2px);
+      border-color: rgba(56,189,248,0.7);
+    }
+
+    .print-only {
+      display: none;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.72);
+      z-index: 999;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .modal.active {
+      display: block;
+    }
+
+    .modal-card {
+      max-width: 760px;
+      margin: 40px auto;
+      background: #0f172a;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      background: #052e16;
+      border: 1px solid rgba(34,197,94,0.45);
+      color: #dcfce7;
+      border-radius: 14px;
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
+      display: none;
+      z-index: 1000;
+      font-weight: 800;
+      max-width: 320px;
+    }
+
+    .toast.active {
+      display: block;
+    }
+
+    @media (max-width: 1100px) {
+      .hero,
+      .daily-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .grid.four,
+      .grid.three,
+      .quick-links,
+      .summary-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .task-board {
+        grid-template-columns: repeat(4, 280px);
+      }
+    }
+
+    @media (max-width: 700px) {
+      .app-shell {
+        padding: 14px;
+      }
+
+      .hero-main,
+      .hero-side,
+      .panel {
+        border-radius: 16px;
+        padding: 16px;
+      }
+
+      .grid.two,
+      .grid.three,
+      .grid.four,
+      .quick-links,
+      .summary-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar {
+        align-items: stretch;
+      }
+
+      .tabs,
+      .hero-actions,
+      .card-actions {
+        width: 100%;
+      }
+
+      .tab-btn,
+      .btn {
+        flex: 1;
+        text-align: center;
+      }
+
+      .panel-title {
+        flex-direction: column;
+      }
+
+      .card-top {
+        flex-direction: column;
+      }
+
+      .card-actions {
+        justify-content: flex-start;
+      }
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+        color: #111827;
+      }
+
+      .hero,
+      .toolbar,
+      .panel form,
+      .card-actions,
+      .btn,
+      .tabs,
+      .toast,
+      .modal {
+        display: none !important;
+      }
+
+      .app-shell {
+        max-width: none;
+        padding: 0;
+      }
+
+      .section {
+        display: block !important;
+      }
+
+      .panel,
+      .member-card,
+      .task-card,
+      .note-card,
+      .link-card,
+      .summary-box,
+      .table-wrap {
+        box-shadow: none;
+        background: #ffffff;
+        color: #111827;
+        border-color: #d1d5db;
+      }
+
+      .muted,
+      .card-subtitle,
+      label,
+      th {
+        color: #374151;
+      }
+
+      .print-only {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <div class="hero">
+      <section class="hero-main">
+        <div class="eyebrow">Inventory Control Team</div>
+        <h1>Daily labor, assignments, tasks, notes, and team links in one place.</h1>
+        <p class="hero-copy">
+          Use this page as your inventory team command board. Add team members, assign daily work, track labor hours, log notes, save important links, and print a clean daily snapshot.
+        </p>
+        <div class="hero-actions">
+          <button class="btn primary" onclick="openModal('memberModal')">Add Team Member</button>
+          <button class="btn success" onclick="openModal('taskModal')">Add Task</button>
+          <button class="btn warning" onclick="printPage()">Print Daily Page</button>
+        </div>
+      </section>
+
+      <aside class="hero-side">
+        <div class="metric">
+          <div class="metric-label">Team Members</div>
+          <div class="metric-value" id="memberCount">0</div>
+          <div class="metric-note">Active people on the board</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Open Tasks</div>
+          <div class="metric-value" id="openTaskCount">0</div>
+          <div class="metric-note">Not completed yet</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Labor Hours Today</div>
+          <div class="metric-value" id="laborTotal">0</div>
+          <div class="metric-note">Logged from the Daily Labor tab</div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="toolbar">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="showSection('dashboard', this)">Dashboard</button>
+        <button class="tab-btn" onclick="showSection('team', this)">Team</button>
+        <button class="tab-btn" onclick="showSection('tasks', this)">Tasks</button>
+        <button class="tab-btn" onclick="showSection('labor', this)">Daily Labor</button>
+        <button class="tab-btn" onclick="showSection('notes', this)">Notes</button>
+        <button class="tab-btn" onclick="showSection('links', this)">Links</button>
+      </div>
+
+      <div class="hero-actions">
+        <button class="btn small" onclick="exportData()">Export Backup</button>
+        <button class="btn small" onclick="document.getElementById('importFile').click()">Import Backup</button>
+        <input id="importFile" type="file" accept="application/json" style="display:none" onchange="importData(event)" />
+        <button class="btn danger small" onclick="resetAllData()">Reset Page</button>
+      </div>
+    </div>
+
+    <section id="dashboard" class="section active">
+      <div class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Today’s Snapshot</h2>
+            <p>A fast view of who is assigned, what is open, and what needs attention.</p>
+          </div>
+          <button class="btn small" onclick="seedSampleData()">Load Example Setup</button>
+        </div>
+
+        <div class="summary-strip">
+          <div class="summary-box">
+            <span class="muted">Not Started</span>
+            <strong id="sumNotStarted">0</strong>
+          </div>
+          <div class="summary-box">
+            <span class="muted">In Progress</span>
+            <strong id="sumInProgress">0</strong>
+          </div>
+          <div class="summary-box">
+            <span class="muted">Blocked</span>
+            <strong id="sumBlocked">0</strong>
+          </div>
+          <div class="summary-box">
+            <span class="muted">Completed</span>
+            <strong id="sumCompleted">0</strong>
+          </div>
+          <div class="summary-box">
+            <span class="muted">Notes</span>
+            <strong id="sumNotes">0</strong>
+          </div>
+        </div>
+
+        <div class="quick-links" id="quickLinks"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Assignment Board</h2>
+            <p>Tasks are grouped by status so you can see the day clearly.</p>
+          </div>
+        </div>
+        <div class="task-board">
+          <div class="task-column">
+            <h3>Not Started <span id="colNotStarted">0</span></h3>
+            <div id="notStartedTasks"></div>
+          </div>
+          <div class="task-column">
+            <h3>In Progress <span id="colInProgress">0</span></h3>
+            <div id="inProgressTasks"></div>
+          </div>
+          <div class="task-column">
+            <h3>Blocked <span id="colBlocked">0</span></h3>
+            <div id="blockedTasks"></div>
+          </div>
+          <div class="task-column">
+            <h3>Completed <span id="colCompleted">0</span></h3>
+            <div id="completedTasks"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="team" class="section">
+      <div class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Team Members</h2>
+            <p>Add names, roles, shifts, skills, and notes for each team member.</p>
+          </div>
+          <button class="btn primary" onclick="openModal('memberModal')">Add Team Member</button>
+        </div>
+        <div id="memberList" class="card-list"></div>
+      </div>
+    </section>
+
+    <section id="tasks" class="section">
+      <div class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Tasks and Assignments</h2>
+            <p>Create daily assignments, set priority, assign work, and track status.</p>
+          </div>
+          <button class="btn success" onclick="openModal('taskModal')">Add Task</button>
+        </div>
+
+        <div class="grid three" style="margin-bottom: 14px;">
+          <div>
+            <label for="taskFilterStatus">Filter Status</label>
+            <select id="taskFilterStatus" onchange="renderAll()">
+              <option value="All">All</option>
+              <option value="Not Started">Not Started</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Blocked">Blocked</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+          <div>
+            <label for="taskFilterPerson">Filter Person</label>
+            <select id="taskFilterPerson" onchange="renderAll()">
+              <option value="All">All</option>
+            </select>
+          </div>
+          <div>
+            <label for="taskSearch">Search</label>
+            <input id="taskSearch" type="search" placeholder="Search task, area, notes..." oninput="renderAll()" />
+          </div>
+        </div>
+
+        <div id="taskList" class="card-list"></div>
+      </div>
+    </section>
+
+    <section id="labor" class="section">
+      <div class="daily-layout">
+        <div class="panel">
+          <div class="panel-title">
+            <div>
+              <h2>Log Labor</h2>
+              <p>Track labor by date, person, assignment, and hours.</p>
+            </div>
+          </div>
+
+          <form id="laborForm" onsubmit="saveLabor(event)">
+            <input type="hidden" id="laborId" />
+            <div class="grid">
+              <div>
+                <label for="laborDate">Date</label>
+                <input id="laborDate" type="date" required />
+              </div>
+              <div>
+                <label for="laborPerson">Team Member</label>
+                <select id="laborPerson" required></select>
+              </div>
+              <div>
+                <label for="laborAssignment">Assignment</label>
+                <input id="laborAssignment" type="text" placeholder="Cycle counts, shortages, replenishment..." required />
+              </div>
+              <div>
+                <label for="laborHours">Hours</label>
+                <input id="laborHours" type="number" min="0" step="0.25" placeholder="8" required />
+              </div>
+              <div>
+                <label for="laborOutput">Output</label>
+                <input id="laborOutput" type="text" placeholder="Bins counted, lines cleared, tickets closed..." />
+              </div>
+              <div>
+                <label for="laborNotes">Notes</label>
+                <textarea id="laborNotes" placeholder="Any issue, blocker, follow-up, or result"></textarea>
+              </div>
+            </div>
+
+            <div class="hero-actions">
+              <button class="btn primary" type="submit">Save Labor</button>
+              <button class="btn" type="button" onclick="clearLaborForm()">Clear</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">
+            <div>
+              <h2>Daily Labor Table</h2>
+              <p>Review hours, output, and notes by person.</p>
+            </div>
+          </div>
+
+          <div class="grid two" style="margin-bottom: 14px;">
+            <div>
+              <label for="laborFilterDate">Filter Date</label>
+              <input id="laborFilterDate" type="date" onchange="renderAll()" />
+            </div>
+            <div>
+              <label for="laborFilterPerson">Filter Person</label>
+              <select id="laborFilterPerson" onchange="renderAll()">
+                <option value="All">All</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Person</th>
+                  <th>Assignment</th>
+                  <th>Hours</th>
+                  <th>Output</th>
+                  <th>Notes</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="laborTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="notes" class="section">
+      <div class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Team Notes</h2>
+            <p>Keep daily notes, issues, reminders, and shift handoff details.</p>
+          </div>
+        </div>
+
+        <form id="noteForm" onsubmit="saveNote(event)" style="margin-bottom: 16px;">
+          <input type="hidden" id="noteId" />
+          <div class="grid three">
+            <div>
+              <label for="noteDate">Date</label>
+              <input id="noteDate" type="date" required />
+            </div>
+            <div>
+              <label for="noteCategory">Category</label>
+              <select id="noteCategory" required>
+                <option value="Daily Handoff">Daily Handoff</option>
+                <option value="Shortage">Shortage</option>
+                <option value="Cycle Count">Cycle Count</option>
+                <option value="Replenishment">Replenishment</option>
+                <option value="Picker Issue">Picker Issue</option>
+                <option value="System Issue">System Issue</option>
+                <option value="Safety">Safety</option>
+                <option value="General">General</option>
+              </select>
+            </div>
+            <div>
+              <label for="noteOwner">Owner</label>
+              <select id="noteOwner"></select>
+            </div>
+          </div>
+          <div style="margin-top: 12px;">
+            <label for="noteText">Note</label>
+            <textarea id="noteText" placeholder="Write the note here..." required></textarea>
+          </div>
+          <div class="hero-actions">
+            <button class="btn primary" type="submit">Save Note</button>
+            <button class="btn" type="button" onclick="clearNoteForm()">Clear</button>
+          </div>
+        </form>
+
+        <div id="noteList" class="card-list"></div>
+      </div>
+    </section>
+
+    <section id="links" class="section">
+      <div class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Team Links</h2>
+            <p>Save links to portals, sheets, reports, SOPs, dashboards, and tools.</p>
+          </div>
+        </div>
+
+        <form id="linkForm" onsubmit="saveLink(event)" style="margin-bottom: 16px;">
+          <input type="hidden" id="linkId" />
+          <div class="grid three">
+            <div>
+              <label for="linkName">Link Name</label>
+              <input id="linkName" type="text" placeholder="IC Portal" required />
+            </div>
+            <div>
+              <label for="linkUrl">URL</label>
+              <input id="linkUrl" type="url" placeholder="https://example.com" required />
+            </div>
+            <div>
+              <label for="linkCategory">Category</label>
+              <select id="linkCategory" required>
+                <option value="Portal">Portal</option>
+                <option value="Report">Report</option>
+                <option value="Sheet">Sheet</option>
+                <option value="SOP">SOP</option>
+                <option value="Dashboard">Dashboard</option>
+                <option value="Tool">Tool</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top: 12px;">
+            <label for="linkDescription">Description</label>
+            <textarea id="linkDescription" placeholder="What this link is used for"></textarea>
+          </div>
+          <div class="hero-actions">
+            <button class="btn primary" type="submit">Save Link</button>
+            <button class="btn" type="button" onclick="clearLinkForm()">Clear</button>
+          </div>
+        </form>
+
+        <div id="linkList" class="card-list"></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="memberModal" class="modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h2 id="memberModalTitle">Add Team Member</h2>
+          <p class="muted">Add role, shift, skills, and notes.</p>
+        </div>
+        <button class="btn small" onclick="closeModal('memberModal')">Close</button>
+      </div>
+
+      <form id="memberForm" onsubmit="saveMember(event)">
+        <input type="hidden" id="memberId" />
+        <div class="grid two">
+          <div>
+            <label for="memberName">Name</label>
+            <input id="memberName" type="text" required />
+          </div>
+          <div>
+            <label for="memberRole">Role</label>
+            <input id="memberRole" type="text" placeholder="IC Team, Outbound Clerk, Lead..." required />
+          </div>
+          <div>
+            <label for="memberShift">Shift</label>
+            <input id="memberShift" type="text" placeholder="7:00 AM to 3:30 PM" />
+          </div>
+          <div>
+            <label for="memberStatus">Status</label>
+            <select id="memberStatus">
+              <option value="Active">Active</option>
+              <option value="Training">Training</option>
+              <option value="Out Today">Out Today</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+          <div>
+            <label for="memberSkills">Skills</label>
+            <input id="memberSkills" type="text" placeholder="Cycle counts, shortages, turret, cherry picker" />
+          </div>
+          <div>
+            <label for="memberPhone">Contact</label>
+            <input id="memberPhone" type="text" placeholder="Optional phone, radio, or contact note" />
+          </div>
+        </div>
+        <div style="margin-top: 12px;">
+          <label for="memberNotes">Notes</label>
+          <textarea id="memberNotes" placeholder="Training notes, strengths, restrictions, reminders"></textarea>
+        </div>
+
+        <div class="hero-actions">
+          <button class="btn primary" type="submit">Save Member</button>
+          <button class="btn" type="button" onclick="clearMemberForm()">Clear</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="taskModal" class="modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h2 id="taskModalTitle">Add Task</h2>
+          <p class="muted">Create an assignment and track progress.</p>
+        </div>
+        <button class="btn small" onclick="closeModal('taskModal')">Close</button>
+      </div>
+
+      <form id="taskForm" onsubmit="saveTask(event)">
+        <input type="hidden" id="taskId" />
+        <div class="grid two">
+          <div>
+            <label for="taskTitle">Task</label>
+            <input id="taskTitle" type="text" placeholder="Shortage research, cycle count aisle 35..." required />
+          </div>
+          <div>
+            <label for="taskPerson">Assigned To</label>
+            <select id="taskPerson"></select>
+          </div>
+          <div>
+            <label for="taskArea">Area</label>
+            <input id="taskArea" type="text" placeholder="NAPA, TAG, aisle, pack area..." />
+          </div>
+          <div>
+            <label for="taskDueDate">Due Date</label>
+            <input id="taskDueDate" type="date" />
+          </div>
+          <div>
+            <label for="taskPriority">Priority</label>
+            <select id="taskPriority">
+              <option value="Normal">Normal</option>
+              <option value="High">High</option>
+              <option value="Urgent">Urgent</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+          <div>
+            <label for="taskStatus">Status</label>
+            <select id="taskStatus">
+              <option value="Not Started">Not Started</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Blocked">Blocked</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top: 12px;">
+          <label for="taskNotes">Task Notes</label>
+          <textarea id="taskNotes" placeholder="Add details, blockers, ticket numbers, bins, product codes..."></textarea>
+        </div>
+
+        <div class="hero-actions">
+          <button class="btn primary" type="submit">Save Task</button>
+          <button class="btn" type="button" onclick="clearTaskForm()">Clear</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const STORAGE_KEY = "inventoryTeamCommandPage_v1";
+
+    let state = {
+      members: [],
+      tasks: [],
+      labor: [],
+      notes: [],
+      links: []
+    };
+
+    const today = new Date().toISOString().split("T")[0];
+
+    function generateId(prefix) {
+      return prefix + "_" + Date.now() + "_" + Math.random().toString(16).slice(2);
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      renderAll();
+    }
+
+    function loadState() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          state = JSON.parse(saved);
+        } catch (error) {
+          console.error("Unable to load saved page data", error);
+        }
+      }
+
+      document.getElementById("laborDate").value = today;
+      document.getElementById("laborFilterDate").value = today;
+      document.getElementById("noteDate").value = today;
+
+      renderAll();
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("active");
+
+      setTimeout(() => {
+        toast.classList.remove("active");
+      }, 2300);
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.add("active");
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove("active");
+    }
+
+    function showSection(sectionId, button) {
+      document.querySelectorAll(".section").forEach(section => {
+        section.classList.remove("active");
+      });
+
+      document.querySelectorAll(".tab-btn").forEach(tab => {
+        tab.classList.remove("active");
+      });
+
+      document.getElementById(sectionId).classList.add("active");
+      button.classList.add("active");
+    }
+
+    function escapeHtml(value) {
+      if (!value) return "";
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function statusBadgeClass(status) {
+      if (status === "Active") return "green";
+      if (status === "Training") return "blue";
+      if (status === "Out Today") return "orange";
+      if (status === "Inactive") return "red";
+      if (status === "Completed") return "green";
+      if (status === "In Progress") return "blue";
+      if (status === "Blocked") return "red";
+      if (status === "Not Started") return "orange";
+      return "";
+    }
+
+    function priorityBadgeClass(priority) {
+      if (priority === "Urgent") return "red";
+      if (priority === "High") return "orange";
+      if (priority === "Low") return "purple";
+      return "blue";
+    }
+
+    function getMemberName(id) {
+      const member = state.members.find(item => item.id === id);
+      return member ? member.name : "Unassigned";
+    }
+
+    function renderAll() {
+      renderMetrics();
+      renderSelects();
+      renderMembers();
+      renderTasks();
+      renderTaskBoard();
+      renderLabor();
+      renderNotes();
+      renderLinks();
+    }
+
+    function renderMetrics() {
+      const openTasks = state.tasks.filter(task => task.status !== "Completed").length;
+      const todaysLabor = state.labor
+        .filter(item => item.date === today)
+        .reduce((sum, item) => sum + Number(item.hours || 0), 0);
+
+      const notStarted = state.tasks.filter(task => task.status === "Not Started").length;
+      const inProgress = state.tasks.filter(task => task.status === "In Progress").length;
+      const blocked = state.tasks.filter(task => task.status === "Blocked").length;
+      const completed = state.tasks.filter(task => task.status === "Completed").length;
+
+      document.getElementById("memberCount").textContent = state.members.length;
+      document.getElementById("openTaskCount").textContent = openTasks;
+      document.getElementById("laborTotal").textContent = todaysLabor.toFixed(2).replace(".00", "");
+
+      document.getElementById("sumNotStarted").textContent = notStarted;
+      document.getElementById("sumInProgress").textContent = inProgress;
+      document.getElementById("sumBlocked").textContent = blocked;
+      document.getElementById("sumCompleted").textContent = completed;
+      document.getElementById("sumNotes").textContent = state.notes.length;
+
+      document.getElementById("colNotStarted").textContent = notStarted;
+      document.getElementById("colInProgress").textContent = inProgress;
+      document.getElementById("colBlocked").textContent = blocked;
+      document.getElementById("colCompleted").textContent = completed;
+    }
+
+    function renderSelects() {
+      const memberOptions = [
+        '<option value="">Unassigned</option>',
+        ...state.members.map(member => `<option value="${member.id}">${escapeHtml(member.name)}</option>`)
+      ].join("");
+
+      const allMemberOptions = [
+        '<option value="All">All</option>',
+        ...state.members.map(member => `<option value="${member.id}">${escapeHtml(member.name)}</option>`)
+      ].join("");
+
+      const requiredMemberOptions = state.members.length
+        ? state.members.map(member => `<option value="${member.id}">${escapeHtml(member.name)}</option>`).join("")
+        : '<option value="">Add a team member first</option>';
+
+      document.getElementById("taskPerson").innerHTML = memberOptions;
+      document.getElementById("taskFilterPerson").innerHTML = allMemberOptions;
+      document.getElementById("laborPerson").innerHTML = requiredMemberOptions;
+      document.getElementById("laborFilterPerson").innerHTML = allMemberOptions;
+      document.getElementById("noteOwner").innerHTML = memberOptions;
+    }
+
+    function renderMembers() {
+      const list = document.getElementById("memberList");
+
+      if (!state.members.length) {
+        list.innerHTML = '<div class="empty">No team members yet. Add your IC team, outbound clerk, leads, or support roles.</div>';
+        return;
+      }
+
+      list.innerHTML = state.members.map(member => `
+        <div class="member-card">
+          <div class="card-top">
+            <div>
+              <h3 class="card-title">${escapeHtml(member.name)}</h3>
+              <div class="card-subtitle">${escapeHtml(member.role)} ${member.shift ? " | " + escapeHtml(member.shift) : ""}</div>
+              <div class="badge-row">
+                <span class="badge ${statusBadgeClass(member.status)}">${escapeHtml(member.status)}</span>
+                ${member.skills ? `<span class="badge blue">${escapeHtml(member.skills)}</span>` : ""}
+                ${member.phone ? `<span class="badge">${escapeHtml(member.phone)}</span>` : ""}
+              </div>
+            </div>
+            <div class="card-actions">
+              <button class="btn small" onclick="editMember('${member.id}')">Edit</button>
+              <button class="btn danger small" onclick="deleteMember('${member.id}')">Delete</button>
+            </div>
+          </div>
+          ${member.notes ? `<p class="muted">${escapeHtml(member.notes)}</p>` : ""}
+        </div>
+      `).join("");
+    }
+
+    function saveMember(event) {
+      event.preventDefault();
+
+      const id = document.getElementById("memberId").value;
+      const member = {
+        id: id || generateId("member"),
+        name: document.getElementById("memberName").value.trim(),
+        role: document.getElementById("memberRole").value.trim(),
+        shift: document.getElementById("memberShift").value.trim(),
+        status: document.getElementById("memberStatus").value,
+        skills: document.getElementById("memberSkills").value.trim(),
+        phone: document.getElementById("memberPhone").value.trim(),
+        notes: document.getElementById("memberNotes").value.trim()
+      };
+
+      if (id) {
+        state.members = state.members.map(item => item.id === id ? member : item);
+      } else {
+        state.members.push(member);
+      }
+
+      clearMemberForm();
+      closeModal("memberModal");
+      saveState();
+      showToast("Team member saved");
+    }
+
+    function editMember(id) {
+      const member = state.members.find(item => item.id === id);
+      if (!member) return;
+
+      document.getElementById("memberModalTitle").textContent = "Edit Team Member";
+      document.getElementById("memberId").value = member.id;
+      document.getElementById("memberName").value = member.name;
+      document.getElementById("memberRole").value = member.role;
+      document.getElementById("memberShift").value = member.shift || "";
+      document.getElementById("memberStatus").value = member.status;
+      document.getElementById("memberSkills").value = member.skills || "";
+      document.getElementById("memberPhone").value = member.phone || "";
+      document.getElementById("memberNotes").value = member.notes || "";
+
+      openModal("memberModal");
+    }
+
+    function deleteMember(id) {
+      const confirmDelete = confirm("Delete this team member? Tasks and labor records will stay, but the name will show as unassigned if linked.");
+      if (!confirmDelete) return;
+
+      state.members = state.members.filter(member => member.id !== id);
+      saveState();
+      showToast("Team member deleted");
+    }
+
+    function clearMemberForm() {
+      document.getElementById("memberModalTitle").textContent = "Add Team Member";
+      document.getElementById("memberForm").reset();
+      document.getElementById("memberId").value = "";
+      document.getElementById("memberStatus").value = "Active";
+    }
+
+    function renderTasks() {
+      const list = document.getElementById("taskList");
+      const statusFilter = document.getElementById("taskFilterStatus").value;
+      const personFilter = document.getElementById("taskFilterPerson").value;
+      const search = document.getElementById("taskSearch").value.toLowerCase();
+
+      let tasks = [...state.tasks];
+
+      if (statusFilter !== "All") {
+        tasks = tasks.filter(task => task.status === statusFilter);
+      }
+
+      if (personFilter !== "All") {
+        tasks = tasks.filter(task => task.personId === personFilter);
+      }
+
+      if (search) {
+        tasks = tasks.filter(task => {
+          const combined = [
+            task.title,
+            task.area,
+            task.notes,
+            task.priority,
+            task.status,
+            getMemberName(task.personId)
+          ].join(" ").toLowerCase();
+
+          return combined.includes(search);
+        });
+      }
+
+      if (!tasks.length) {
+        list.innerHTML = '<div class="empty">No matching tasks. Add a task or change the filters.</div>';
+        return;
+      }
+
+      list.innerHTML = tasks.map(task => createTaskCard(task, true)).join("");
+    }
+
+    function createTaskCard(task, showActions) {
+      return `
+        <div class="task-card">
+          <div class="card-top">
+            <div>
+              <h3 class="card-title">${escapeHtml(task.title)}</h3>
+              <div class="card-subtitle">Assigned to ${escapeHtml(getMemberName(task.personId))}</div>
+              <div class="badge-row">
+                <span class="badge ${statusBadgeClass(task.status)}">${escapeHtml(task.status)}</span>
+                <span class="badge ${priorityBadgeClass(task.priority)}">${escapeHtml(task.priority)}</span>
+                ${task.area ? `<span class="badge">${escapeHtml(task.area)}</span>` : ""}
+                ${task.dueDate ? `<span class="badge purple">Due ${escapeHtml(task.dueDate)}</span>` : ""}
+              </div>
+            </div>
+            ${showActions ? `
+              <div class="card-actions">
+                <button class="btn small" onclick="quickStatus('${task.id}', 'In Progress')">Start</button>
+                <button class="btn success small" onclick="quickStatus('${task.id}', 'Completed')">Complete</button>
+                <button class="btn small" onclick="editTask('${task.id}')">Edit</button>
+                <button class="btn danger small" onclick="deleteTask('${task.id}')">Delete</button>
+              </div>
+            ` : ""}
+          </div>
+          ${task.notes ? `<p class="muted">${escapeHtml(task.notes)}</p>` : ""}
+        </div>
+      `;
+    }
+
+    function renderTaskBoard() {
+      const statusMap = {
+        "Not Started": document.getElementById("notStartedTasks"),
+        "In Progress": document.getElementById("inProgressTasks"),
+        "Blocked": document.getElementById("blockedTasks"),
+        "Completed": document.getElementById("completedTasks")
+      };
+
+      Object.keys(statusMap).forEach(status => {
+        const tasks = state.tasks.filter(task => task.status === status);
+        statusMap[status].innerHTML = tasks.length
+          ? tasks.map(task => createTaskCard(task, true)).join("")
+          : '<div class="empty">None</div>';
+      });
+    }
+
+    function saveTask(event) {
+      event.preventDefault();
+
+      const id = document.getElementById("taskId").value;
+      const task = {
+        id: id || generateId("task"),
+        title: document.getElementById("taskTitle").value.trim(),
+        personId: document.getElementById("taskPerson").value,
+        area: document.getElementById("taskArea").value.trim(),
+        dueDate: document.getElementById("taskDueDate").value,
+        priority: document.getElementById("taskPriority").value,
+        status: document.getElementById("taskStatus").value,
+        notes: document.getElementById("taskNotes").value.trim(),
+        updatedAt: new Date().toISOString()
+      };
+
+      if (id) {
+        state.tasks = state.tasks.map(item => item.id === id ? task : item);
+      } else {
+        state.tasks.push(task);
+      }
+
+      clearTaskForm();
+      closeModal("taskModal");
+      saveState();
+      showToast("Task saved");
+    }
+
+    function editTask(id) {
+      const task = state.tasks.find(item => item.id === id);
+      if (!task) return;
+
+      document.getElementById("taskModalTitle").textContent = "Edit Task";
+      document.getElementById("taskId").value = task.id;
+      document.getElementById("taskTitle").value = task.title;
+      document.getElementById("taskPerson").value = task.personId || "";
+      document.getElementById("taskArea").value = task.area || "";
+      document.getElementById("taskDueDate").value = task.dueDate || "";
+      document.getElementById("taskPriority").value = task.priority;
+      document.getElementById("taskStatus").value = task.status;
+      document.getElementById("taskNotes").value = task.notes || "";
+
+      openModal("taskModal");
+    }
+
+    function deleteTask(id) {
+      const confirmDelete = confirm("Delete this task?");
+      if (!confirmDelete) return;
+
+      state.tasks = state.tasks.filter(task => task.id !== id);
+      saveState();
+      showToast("Task deleted");
+    }
+
+    function quickStatus(id, status) {
+      state.tasks = state.tasks.map(task => {
+        if (task.id === id) {
+          return {
+            ...task,
+            status: status,
+            updatedAt: new Date().toISOString()
+          };
+        }
+
+        return task;
+      });
+
+      saveState();
+      showToast("Task updated");
+    }
+
+    function clearTaskForm() {
+      document.getElementById("taskModalTitle").textContent = "Add Task";
+      document.getElementById("taskForm").reset();
+      document.getElementById("taskId").value = "";
+      document.getElementById("taskPriority").value = "Normal";
+      document.getElementById("taskStatus").value = "Not Started";
+    }
+
+    function saveLabor(event) {
+      event.preventDefault();
+
+      const id = document.getElementById("laborId").value;
+      const laborItem = {
+        id: id || generateId("labor"),
+        date: document.getElementById("laborDate").value,
+        personId: document.getElementById("laborPerson").value,
+        assignment: document.getElementById("laborAssignment").value.trim(),
+        hours: Number(document.getElementById("laborHours").value || 0),
+        output: document.getElementById("laborOutput").value.trim(),
+        notes: document.getElementById("laborNotes").value.trim()
+      };
+
+      if (id) {
+        state.labor = state.labor.map(item => item.id === id ? laborItem : item);
+      } else {
+        state.labor.push(laborItem);
+      }
+
+      clearLaborForm();
+      saveState();
+      showToast("Labor saved");
+    }
+
+    function renderLabor() {
+      const table = document.getElementById("laborTable");
+      const dateFilter = document.getElementById("laborFilterDate").value;
+      const personFilter = document.getElementById("laborFilterPerson").value;
+
+      let labor = [...state.labor].sort((a, b) => b.date.localeCompare(a.date));
+
+      if (dateFilter) {
+        labor = labor.filter(item => item.date === dateFilter);
+      }
+
+      if (personFilter !== "All") {
+        labor = labor.filter(item => item.personId === personFilter);
+      }
+
+      if (!labor.length) {
+        table.innerHTML = `
+          <tr>
+            <td colspan="7" class="muted">No labor records found for this filter.</td>
+          </tr>
+        `;
+        return;
+      }
+
+      table.innerHTML = labor.map(item => `
+        <tr>
+          <td>${escapeHtml(item.date)}</td>
+          <td>${escapeHtml(getMemberName(item.personId))}</td>
+          <td>${escapeHtml(item.assignment)}</td>
+          <td>${Number(item.hours || 0).toFixed(2).replace(".00", "")}</td>
+          <td>${escapeHtml(item.output)}</td>
+          <td>${escapeHtml(item.notes)}</td>
+          <td>
+            <button class="btn small" onclick="editLabor('${item.id}')">Edit</button>
+            <button class="btn danger small" onclick="deleteLabor('${item.id}')">Delete</button>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function editLabor(id) {
+      const laborItem = state.labor.find(item => item.id === id);
+      if (!laborItem) return;
+
+      document.getElementById("laborId").value = laborItem.id;
+      document.getElementById("laborDate").value = laborItem.date;
+      document.getElementById("laborPerson").value = laborItem.personId;
+      document.getElementById("laborAssignment").value = laborItem.assignment;
+      document.getElementById("laborHours").value = laborItem.hours;
+      document.getElementById("laborOutput").value = laborItem.output || "";
+      document.getElementById("laborNotes").value = laborItem.notes || "";
+    }
+
+    function deleteLabor(id) {
+      const confirmDelete = confirm("Delete this labor record?");
+      if (!confirmDelete) return;
+
+      state.labor = state.labor.filter(item => item.id !== id);
+      saveState();
+      showToast("Labor deleted");
+    }
+
+    function clearLaborForm() {
+      document.getElementById("laborForm").reset();
+      document.getElementById("laborId").value = "";
+      document.getElementById("laborDate").value = today;
+    }
+
+    function saveNote(event) {
+      event.preventDefault();
+
+      const id = document.getElementById("noteId").value;
+      const note = {
+        id: id || generateId("note"),
+        date: document.getElementById("noteDate").value,
+        category: document.getElementById("noteCategory").value,
+        ownerId: document.getElementById("noteOwner").value,
+        text: document.getElementById("noteText").value.trim()
+      };
+
+      if (id) {
+        state.notes = state.notes.map(item => item.id === id ? note : item);
+      } else {
+        state.notes.push(note);
+      }
+
+      clearNoteForm();
+      saveState();
+      showToast("Note saved");
+    }
+
+    function renderNotes() {
+      const list = document.getElementById("noteList");
+
+      if (!state.notes.length) {
+        list.innerHTML = '<div class="empty">No notes yet. Add shift notes, blockers, shortage updates, or handoff items.</div>';
+        return;
+      }
+
+      const notes = [...state.notes].sort((a, b) => b.date.localeCompare(a.date));
+
+      list.innerHTML = notes.map(note => `
+        <div class="note-card">
+          <div class="card-top">
+            <div>
+              <h3 class="card-title">${escapeHtml(note.category)}</h3>
+              <div class="card-subtitle">${escapeHtml(note.date)} ${note.ownerId ? " | Owner: " + escapeHtml(getMemberName(note.ownerId)) : ""}</div>
+            </div>
+            <div class="card-actions">
+              <button class="btn small" onclick="editNote('${note.id}')">Edit</button>
+              <button class="btn danger small" onclick="deleteNote('${note.id}')">Delete</button>
+            </div>
+          </div>
+          <p class="muted">${escapeHtml(note.text)}</p>
+        </div>
+      `).join("");
+    }
+
+    function editNote(id) {
+      const note = state.notes.find(item => item.id === id);
+      if (!note) return;
+
+      document.getElementById("noteId").value = note.id;
+      document.getElementById("noteDate").value = note.date;
+      document.getElementById("noteCategory").value = note.category;
+      document.getElementById("noteOwner").value = note.ownerId || "";
+      document.getElementById("noteText").value = note.text;
+    }
+
+    function deleteNote(id) {
+      const confirmDelete = confirm("Delete this note?");
+      if (!confirmDelete) return;
+
+      state.notes = state.notes.filter(note => note.id !== id);
+      saveState();
+      showToast("Note deleted");
+    }
+
+    function clearNoteForm() {
+      document.getElementById("noteForm").reset();
+      document.getElementById("noteId").value = "";
+      document.getElementById("noteDate").value = today;
+      document.getElementById("noteCategory").value = "Daily Handoff";
+    }
+
+    function saveLink(event) {
+      event.preventDefault();
+
+      const id = document.getElementById("linkId").value;
+      const link = {
+        id: id || generateId("link"),
+        name: document.getElementById("linkName").value.trim(),
+        url: document.getElementById("linkUrl").value.trim(),
+        category: document.getElementById("linkCategory").value,
+        description: document.getElementById("linkDescription").value.trim()
+      };
+
+      if (id) {
+        state.links = state.links.map(item => item.id === id ? link : item);
+      } else {
+        state.links.push(link);
+      }
+
+      clearLinkForm();
+      saveState();
+      showToast("Link saved");
+    }
+
+    function renderLinks() {
+      const list = document.getElementById("linkList");
+      const quickLinks = document.getElementById("quickLinks");
+
+      if (!state.links.length) {
+        list.innerHTML = '<div class="empty">No links yet. Add your IC portal, reports, SOPs, or team sheets.</div>';
+        quickLinks.innerHTML = '<div class="empty" style="grid-column: 1 / -1;">Add links and they will show here as quick launch buttons.</div>';
+        return;
+      }
+
+      quickLinks.innerHTML = state.links.slice(0, 8).map(link => `
+        <a class="quick-link" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">
+          ${escapeHtml(link.name)}
+          <div class="card-subtitle">${escapeHtml(link.category)}</div>
+        </a>
+      `).join("");
+
+      list.innerHTML = state.links.map(link => `
+        <div class="link-card">
+          <div class="card-top">
+            <div>
+              <h3 class="card-title">${escapeHtml(link.name)}</h3>
+              <div class="card-subtitle">${escapeHtml(link.category)}</div>
+              <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.url)}</a>
+            </div>
+            <div class="card-actions">
+              <button class="btn small" onclick="editLink('${link.id}')">Edit</button>
+              <button class="btn danger small" onclick="deleteLink('${link.id}')">Delete</button>
+            </div>
+          </div>
+          ${link.description ? `<p class="muted">${escapeHtml(link.description)}</p>` : ""}
+        </div>
+      `).join("");
+    }
+
+    function editLink(id) {
+      const link = state.links.find(item => item.id === id);
+      if (!link) return;
+
+      document.getElementById("linkId").value = link.id;
+      document.getElementById("linkName").value = link.name;
+      document.getElementById("linkUrl").value = link.url;
+      document.getElementById("linkCategory").value = link.category;
+      document.getElementById("linkDescription").value = link.description || "";
+    }
+
+    function deleteLink(id) {
+      const confirmDelete = confirm("Delete this link?");
+      if (!confirmDelete) return;
+
+      state.links = state.links.filter(link => link.id !== id);
+      saveState();
+      showToast("Link deleted");
+    }
+
+    function clearLinkForm() {
+      document.getElementById("linkForm").reset();
+      document.getElementById("linkId").value = "";
+      document.getElementById("linkCategory").value = "Portal";
+    }
+
+    function exportData() {
+      const data = JSON.stringify(state, null, 2);
+      const blob = new Blob([data], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "inventory-team-page-backup.json";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(url);
+      showToast("Backup exported");
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = function(loadEvent) {
+        try {
+          const imported = JSON.parse(loadEvent.target.result);
+
+          state = {
+            members: Array.isArray(imported.members) ? imported.members : [],
+            tasks: Array.isArray(imported.tasks) ? imported.tasks : [],
+            labor: Array.isArray(imported.labor) ? imported.labor : [],
+            notes: Array.isArray(imported.notes) ? imported.notes : [],
+            links: Array.isArray(imported.links) ? imported.links : []
+          };
+
+          saveState();
+          showToast("Backup imported");
+        } catch (error) {
+          alert("That file could not be imported. Make sure it is a valid backup JSON file.");
+        }
+      };
+
+      reader.readAsText(file);
+      event.target.value = "";
+    }
+
+    function resetAllData() {
+      const confirmReset = confirm("This will erase all team page data saved on this browser. Continue?");
+      if (!confirmReset) return;
+
+      state = {
+        members: [],
+        tasks: [],
+        labor: [],
+        notes: [],
+        links: []
+      };
+
+      saveState();
+      showToast("Page reset");
+    }
+
+    function printPage() {
+      window.print();
+    }
+
+    function seedSampleData() {
+      const confirmSeed = confirm("Load example data? This will add sample members, tasks, labor, notes, and links without deleting your current data.");
+      if (!confirmSeed) return;
+
+      const memberA = generateId("member");
+      const memberB = generateId("member");
+      const memberC = generateId("member");
+
+      state.members.push(
+        {
+          id: memberA,
+          name: "IC Team Member",
+          role: "Inventory Control",
+          shift: "7:00 AM to 3:30 PM",
+          status: "Active",
+          skills: "Cycle counts, bin research, shortage support",
+          phone: "",
+          notes: "Strong for count accuracy and bin cleanup."
+        },
+        {
+          id: memberB,
+          name: "Outbound Clerk",
+          role: "Outbound Clerk",
+          shift: "7:00 AM to 3:30 PM",
+          status: "Active",
+          skills: "Shortages, pick tickets, staging support",
+          phone: "",
+          notes: "Handles shortage edits and outbound communication."
+        },
+        {
+          id: memberC,
+          name: "IC Lead",
+          role: "Lead",
+          shift: "7:00 AM to 3:30 PM",
+          status: "Training",
+          skills: "Reports, assignments, follow-up",
+          phone: "",
+          notes: "Backup support for daily task board."
+        }
+      );
+
+      state.tasks.push(
+        {
+          id: generateId("task"),
+          title: "Run shortage research",
+          personId: memberB,
+          area: "Outbound",
+          dueDate: today,
+          priority: "High",
+          status: "In Progress",
+          notes: "Review open shortage lines and update notes before lunch.",
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: generateId("task"),
+          title: "Cycle count aisle 35 level 1",
+          personId: memberA,
+          area: "NAPA",
+          dueDate: today,
+          priority: "Normal",
+          status: "Not Started",
+          notes: "Use 10-bin count batches and flag allocation issues.",
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: generateId("task"),
+          title: "Review blocked replenishments",
+          personId: memberC,
+          area: "Primary Bins",
+          dueDate: today,
+          priority: "Urgent",
+          status: "Blocked",
+          notes: "Waiting on system review for negative quantity corrections.",
+          updatedAt: new Date().toISOString()
+        }
+      );
+
+      state.labor.push(
+        {
+          id: generateId("labor"),
+          date: today,
+          personId: memberA,
+          assignment: "Cycle counts",
+          hours: 4,
+          output: "60 bins counted",
+          notes: "Two bins flagged for allocation."
+        },
+        {
+          id: generateId("labor"),
+          date: today,
+          personId: memberB,
+          assignment: "Shortage research",
+          hours: 3.5,
+          output: "12 shortage lines reviewed",
+          notes: "Several needed picker follow-up."
+        }
+      );
+
+      state.notes.push({
+        id: generateId("note"),
+        date: today,
+        category: "Daily Handoff",
+        ownerId: memberC,
+        text: "Check blocked replenishments and shortage notes before end of shift."
+      });
+
+      state.links.push(
+        {
+          id: generateId("link"),
+          name: "IC Portal",
+          url: "https://phocas88.github.io/Chapman_Inventory_Control_Portal",
+          category: "Portal",
+          description: "Jump to the inventory control ticket portal."
+        },
+        {
+          id: generateId("link"),
+          name: "GitHub Portfolio",
+          url: "https://phocas88.github.io/ruben_portfolio/",
+          category: "Dashboard",
+          description: "Portfolio page."
+        }
+      );
+
+      saveState();
+      showToast("Example setup loaded");
+    }
+
+    document.addEventListener("keydown", function(event) {
+      if (event.key === "Escape") {
+        document.querySelectorAll(".modal").forEach(modal => {
+          modal.classList.remove("active");
+        });
+      }
+    });
+
+    window.addEventListener("click", function(event) {
+      document.querySelectorAll(".modal").forEach(modal => {
+        if (event.target === modal) {
+          modal.classList.remove("active");
+        }
+      });
+    });
+
+    loadState();
+  </script>
+</body>
+</html>
