@@ -1,744 +1,956 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-<title>IC Team Hub</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The IC Operations Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--accent:#3b82f6;--accent-glow:rgba(59,130,246,.18);--green:#22c55e;--green-bg:rgba(34,197,94,.12);--yellow:#f59e0b;--yellow-bg:rgba(245,158,11,.12);--red:#ef4444;--red-bg:rgba(239,68,68,.12);--orange:#f97316;--orange-bg:rgba(249,115,22,.12);--purple:#a78bfa;--purple-bg:rgba(167,139,250,.12);--radius:14px;}
-[data-theme="dark"]{--bg:#0a0f1e;--surface:#111827;--surface2:#1a2235;--border:rgba(255,255,255,.10);--text:#e8edf5;--ts:#ffffff;--muted:#6b7fa3;--shadow:0 4px 24px rgba(0,0,0,.5);--nav:rgba(10,15,30,.97);--inp:#1a2235;--mbg:#111827;--thead:rgba(255,255,255,.04);--hrow:rgba(255,255,255,.02);--pd-fill:#3b82f6;--pd-empty:rgba(255,255,255,.15);}
-[data-theme="light"]{--bg:#f1f5f9;--surface:#ffffff;--surface2:#f8fafc;--border:rgba(0,0,0,.10);--text:#1e293b;--ts:#0f172a;--muted:#64748b;--shadow:0 4px 24px rgba(0,0,0,.10);--nav:rgba(255,255,255,.97);--inp:#f8fafc;--mbg:#ffffff;--thead:rgba(0,0,0,.03);--hrow:rgba(0,0,0,.02);--pd-fill:#3b82f6;--pd-empty:rgba(0,0,0,.12);}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.5;transition:background .2s,color .2s;}
-/* NAV */
-.topnav{background:var(--nav);border-bottom:1px solid var(--border);padding:0 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:100;height:56px;backdrop-filter:blur(12px);}
-.brand{font-size:17px;font-weight:800;letter-spacing:-.02em;color:var(--ts);white-space:nowrap;}
-.brand span{color:var(--accent);}
-.nav-right{display:flex;align-items:center;gap:8px;}
-.theme-toggle{border:1px solid var(--border);background:var(--surface2);color:var(--muted);width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;transition:.15s;flex-shrink:0;}
-.theme-toggle:hover{border-color:var(--accent);}
-.mode-pills{display:flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:4px;}
-.mode-pill{border:none;background:transparent;color:var(--muted);font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;cursor:pointer;transition:.15s;white-space:nowrap;font-family:inherit;}
-.mode-pill.active{background:var(--accent);color:#fff;}
-.screen{display:none;}.screen.active{display:block;}
-/* PIN */
-.pin-screen{min-height:calc(100vh - 56px);display:flex;align-items:center;justify-content:center;padding:24px 16px;}
-.pin-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px 28px;width:100%;max-width:360px;text-align:center;box-shadow:var(--shadow);}
-.pin-icon{font-size:36px;margin-bottom:12px;}
-.pin-box h2{font-size:20px;font-weight:800;color:var(--ts);margin-bottom:6px;}
-.pin-box p{font-size:14px;color:var(--muted);margin-bottom:24px;}
-.pin-role-select{display:flex;gap:8px;margin-bottom:24px;}
-.pin-role-btn{flex:1;padding:10px;border:2px solid var(--border);background:var(--surface2);color:var(--text);border-radius:var(--radius);cursor:pointer;font-size:13px;font-weight:700;transition:.15s;font-family:inherit;}
-.pin-role-btn.active{border-color:var(--accent);background:var(--accent-glow);color:var(--accent);}
-.pin-dots{display:flex;gap:12px;justify-content:center;margin-bottom:24px;}
-.pin-dot{width:14px;height:14px;border-radius:50%;background:var(--pd-empty);transition:background .15s;}
-.pin-dot.filled{background:var(--pd-fill);}
-.pin-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-.pin-key{background:var(--surface2);border:1px solid var(--border);color:var(--ts);font-size:20px;font-weight:700;border-radius:var(--radius);padding:16px 8px;cursor:pointer;transition:.12s;line-height:1;font-family:inherit;}
-.pin-key:hover{border-color:var(--accent);background:var(--accent-glow);}
-.pin-key:active{transform:scale(.94);}
-.pin-key.del{font-size:16px;color:var(--muted);}
-.pin-key.clr{font-size:13px;color:var(--muted);}
-.pin-error{color:var(--red);font-size:13px;font-weight:700;margin-top:-12px;margin-bottom:12px;min-height:20px;}
-/* SPECIALIST */
-.worker-shell{max-width:480px;margin:0 auto;padding:16px;}
-.worker-header{text-align:center;padding:20px 0 16px;}
-.worker-header h2{font-size:22px;font-weight:800;color:var(--ts);}
-.worker-header p{color:var(--muted);font-size:14px;margin-top:4px;}
-.date-chip{display:inline-block;background:var(--accent-glow);border:1px solid rgba(59,130,246,.35);color:#3b82f6;font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;margin-top:8px;}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
-.card-label{font-size:11px;font-weight:800;letter-spacing:.10em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
-.worker-select-list{display:grid;gap:8px;}
-.worker-btn{background:var(--surface2);border:2px solid var(--border);color:var(--text);border-radius:var(--radius);padding:14px 16px;cursor:pointer;text-align:left;font-size:15px;font-weight:700;transition:.15s;display:flex;align-items:center;justify-content:space-between;gap:10px;font-family:inherit;}
-.worker-btn:hover,.worker-btn.selected{border-color:var(--accent);background:var(--accent-glow);color:var(--ts);}
-.worker-btn .rt{font-size:12px;font-weight:600;color:var(--muted);}
-.worker-btn.selected .rt{color:var(--accent);}
-.assign-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;}
-.assign-title{font-size:16px;font-weight:800;color:var(--ts);margin-bottom:4px;}
-.assign-meta{font-size:13px;color:var(--muted);margin-bottom:10px;}
-.assign-status-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
-.status-btn{border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:12px;font-weight:700;padding:7px 12px;border-radius:999px;cursor:pointer;transition:.15s;font-family:inherit;}
-.status-btn[data-s="In Progress"].cur{background:var(--yellow-bg);border-color:var(--yellow);color:var(--yellow);}
-.status-btn[data-s="Completed"].cur{background:var(--green-bg);border-color:var(--green);color:var(--green);}
-.status-btn[data-s="Blocked"].cur{background:var(--red-bg);border-color:var(--red);color:var(--red);}
-.status-btn[data-s="Not Started"].cur{background:var(--surface2);border-color:var(--border);color:var(--muted);}
-.attach-list{display:flex;flex-direction:column;gap:6px;margin-top:8px;}
-.attach-pill{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:13px;text-decoration:none;color:var(--accent);font-weight:600;transition:.13s;}
-.attach-pill:hover{border-color:var(--accent);background:var(--accent-glow);}
-.attach-name{flex:1;min-width:0;word-break:break-word;}
-.attach-size{font-size:11px;color:var(--muted);flex-shrink:0;}
-.portal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.portal-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;padding:18px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);text-decoration:none;color:var(--text);font-weight:700;font-size:13px;transition:.15s;min-height:80px;}
-.portal-tile:hover{border-color:var(--accent);background:var(--accent-glow);color:var(--ts);}
-.portal-icon{font-size:24px;line-height:1;}
-.downtime-form{display:grid;gap:12px;}
-.field label{display:block;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
-.field input,.field select,.field textarea{width:100%;background:var(--inp);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:11px 13px;font-size:15px;font-family:inherit;outline:none;min-height:44px;-webkit-appearance:none;appearance:none;}
-.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
-.field textarea{resize:vertical;min-height:80px;line-height:1.45;}
-select option{background:var(--surface);color:var(--text);}
-.big-btn{width:100%;padding:15px;border-radius:var(--radius);border:none;font-size:15px;font-weight:800;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;}
-.big-btn:hover{filter:brightness(1.08);}
-.big-btn.primary{background:var(--accent);color:#fff;}
-.big-btn.warning{background:var(--yellow);color:#451a03;}
-.big-btn.neutral{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
-/* MANAGER */
-.mgr-shell{max-width:1200px;margin:0 auto;padding:20px;}
-.mgr-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:20px;scrollbar-width:none;}
-.mgr-tabs::-webkit-scrollbar{display:none;}
-.mgr-tab{border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:13px;font-weight:700;padding:9px 16px;border-radius:999px;cursor:pointer;white-space:nowrap;transition:.15s;font-family:inherit;}
-.mgr-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
-.mgr-tab:hover:not(.active){border-color:rgba(59,130,246,.5);color:var(--text);}
-.mgr-section{display:none;}.mgr-section.active{display:block;}
-.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:18px;}
-.panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px;}
-.panel-head h2{font-size:18px;font-weight:800;color:var(--ts);margin-bottom:2px;}
-.panel-head p{font-size:13px;color:var(--muted);}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
-.sm-btn{border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;font-weight:700;padding:7px 13px;border-radius:999px;cursor:pointer;white-space:nowrap;transition:.15s;display:inline-flex;align-items:center;gap:5px;font-family:inherit;text-decoration:none;}
-.sm-btn:hover{border-color:var(--accent);}
-.sm-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
-.sm-btn.danger{background:var(--red);color:#fff;border-color:var(--red);}
-.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
-.member-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--border);}
-.member-row:last-child{border-bottom:none;}
-.mi h4{font-size:15px;font-weight:800;color:var(--ts);}
-.mi span{font-size:13px;color:var(--muted);}
-.task-row{display:flex;align-items:flex-start;gap:12px;padding:13px 0;border-bottom:1px solid var(--border);}
-.task-row:last-child{border-bottom:none;}
-.ti{flex:1;min-width:0;}
-.ti h4{font-size:15px;font-weight:800;color:var(--ts);word-break:break-word;}
-.ti p{font-size:13px;color:var(--muted);margin-top:2px;}
-.tchips{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;}
-.tchip{display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:12px;text-decoration:none;color:var(--accent);font-weight:600;cursor:pointer;}
-.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px;white-space:nowrap;letter-spacing:.04em;}
-.badge.green{background:var(--green-bg);color:var(--green);border:1px solid rgba(34,197,94,.3);}
-.badge.yellow{background:var(--yellow-bg);color:var(--yellow);border:1px solid rgba(245,158,11,.3);}
-.badge.red{background:var(--red-bg);color:var(--red);border:1px solid rgba(239,68,68,.3);}
-.badge.blue{background:var(--accent-glow);color:var(--accent);border:1px solid rgba(59,130,246,.3);}
-.badge.orange{background:var(--orange-bg);color:var(--orange);border:1px solid rgba(249,115,22,.3);}
-.badge.gray{background:rgba(128,128,128,.1);color:var(--muted);border:1px solid var(--border);}
-.stat-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px;}
-.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;}
-.stat-box .sv{font-size:28px;font-weight:800;color:var(--ts);margin-top:6px;}
-.stat-box .sl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
-.table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border);}
-table{width:100%;border-collapse:collapse;}
-th{background:var(--thead);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:11px 14px;text-align:left;white-space:nowrap;}
-td{padding:12px 14px;font-size:14px;border-top:1px solid var(--border);vertical-align:top;color:var(--text);}
-tr:hover td{background:var(--hrow);}
-.dtr td{border-left:3px solid var(--orange);}
-.file-drop{border:2px dashed var(--border);border-radius:var(--radius);padding:20px;text-align:center;cursor:pointer;transition:.15s;background:var(--surface2);color:var(--muted);font-size:13px;}
-.file-drop:hover,.file-drop.dragover{border-color:var(--accent);background:var(--accent-glow);color:var(--accent);}
-.file-drop input{display:none;}
-.fp-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
-.fp-item{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:13px;}
-.fp-item span{flex:1;word-break:break-word;color:var(--text);}
-.fp-item .rm{border:none;background:none;color:var(--red);cursor:pointer;font-size:16px;font-weight:800;font-family:inherit;}
-.empty{text-align:center;color:var(--muted);padding:32px 20px;font-size:14px;border:1px dashed var(--border);border-radius:var(--radius);margin-top:4px;}
-.toast{position:fixed;bottom:20px;right:20px;background:#052e16;border:1px solid rgba(34,197,94,.4);color:#dcfce7;padding:12px 16px;border-radius:12px;font-weight:700;font-size:14px;z-index:999;display:none;max-width:280px;}
-.toast.show{display:block;}
-.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;overflow-y:auto;padding:20px;}
-.modal.open{display:flex;align-items:flex-start;justify-content:center;}
-.modal-box{background:var(--mbg);border:1px solid var(--border);border-radius:18px;padding:22px;width:100%;max-width:580px;margin:40px auto;box-shadow:var(--shadow);}
-.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
-.modal-head h3{font-size:17px;font-weight:800;color:var(--ts);}
-.close-btn{background:none;border:1px solid var(--border);color:var(--muted);font-size:18px;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;font-family:inherit;}
-.fv-content{width:100%;max-width:920px;background:var(--mbg);border:1px solid var(--border);border-radius:18px;padding:18px;margin:20px auto;box-shadow:var(--shadow);}
-.fv-content iframe{border:none;width:100%;height:70vh;border-radius:8px;background:#fff;}
-.print-header{display:none;}
-@media print{
-  body{background:#fff!important;color:#111!important;}
-  .topnav,.mgr-tabs,.no-print,.sm-btn,.big-btn,.pin-screen,#screen-specialist,.modal{display:none!important;}
-  .screen,.mgr-section{display:block!important;}
-  #screen-manager{display:block!important;}
-  #mgr-report{display:block!important;}
-  .panel{box-shadow:none!important;border:1px solid #d1d5db!important;background:#fff!important;border-radius:6px;margin-bottom:10px;}
-  .panel-head h2,.stat-box .sv{color:#111!important;}
-  .stat-box{background:#f9fafb!important;border:1px solid #d1d5db!important;}
-  td,th{border-color:#d1d5db!important;color:#111!important;}
-  .muted,.panel-head p,.stat-box .sl,.ti p{color:#4b5563!important;}
-  .print-header{display:block!important;margin-bottom:16px;}
-  .print-header h1{font-size:20px;color:#111;}
-  .print-header p{font-size:13px;color:#4b5563;}
-  .badge{border:1px solid #ccc!important;color:#111!important;background:#f3f4f6!important;}
-  .dtr td{border-left:3px solid #f97316!important;}
-}
-@media(max-width:700px){.mgr-shell{padding:14px;}.grid2,.grid3,.stat-strip{grid-template-columns:1fr;}.portal-grid{grid-template-columns:1fr 1fr;}}
-@media(max-width:420px){.topnav{height:auto;padding:10px 12px;flex-wrap:wrap;gap:8px;}.pin-keypad{gap:8px;}.pin-key{padding:13px 6px;}}
+  :root{
+    --bg:#E9EDF2; --bg2:#E0E5EC; --surface:#FFFFFF; --surface2:#F5F7FA;
+    --ink:#15202C; --ink2:#3B4A59; --muted:#6C7C8C; --line:#D2DAE3; --line2:#E4E9EF;
+    --brand:#12202E; --brand-ink:#E9EDF2;
+    --signal:#E4952B; --signal-d:#C67B14;
+    --ok:#188A5E; --ok-bg:#E4F3EC; --danger:#CE3F3F; --danger-bg:#FBE8E8;
+    --warn:#B57A0E; --warn-bg:#FBF0DA; --info:#2A79C6; --info-bg:#E5EFF9;
+    --r-admin:#12202E; --r-icmgr:#3B49A8; --r-icteam:#2A79C6; --r-outbound:#0E7C86;
+    --r-overpull:#E4952B; --r-reports:#6B4BB6; --r-dock:#12968E; --r-floor:#68788A;
+    --shadow:0 1px 2px rgba(16,32,48,.06),0 6px 18px rgba(16,32,48,.08);
+    --shadow-lg:0 12px 40px rgba(16,32,48,.16);
+    --radius:14px;
+  }
+  [data-theme="dark"]{
+    --bg:#0C1620; --bg2:#0A1219; --surface:#141F2B; --surface2:#101A24;
+    --ink:#E7EDF3; --ink2:#B4C2CF; --muted:#7C8C9B; --line:#243343; --line2:#1B2836;
+    --brand:#0A121A; --brand-ink:#E7EDF3;
+    --ok-bg:#12241C; --danger-bg:#2A1414; --warn-bg:#241C0D; --info-bg:#0F2233;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+    --shadow-lg:0 16px 48px rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;
+    font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh}
+  .mono{font-family:"IBM Plex Mono",monospace}
+  .cond{font-family:"IBM Plex Sans Condensed",sans-serif}
+  .eyebrow{font-family:"IBM Plex Sans Condensed",sans-serif;text-transform:uppercase;
+    letter-spacing:.14em;font-weight:600;font-size:11.5px;color:var(--muted)}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select,textarea{font-family:inherit;font-size:14px}
+  .hidden{display:none !important}
+
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:9px;
+    font-weight:600;font-size:14px;border:1px solid transparent;transition:.15s;white-space:nowrap}
+  .btn:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+  .btn-primary{background:var(--brand);color:var(--brand-ink)}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+  .btn-signal{background:var(--signal);color:#231603}
+  .btn-signal:hover{background:var(--signal-d);color:#fff}
+  .btn-ghost{background:var(--surface);border-color:var(--line);color:var(--ink)}
+  .btn-ghost:hover{border-color:var(--muted)}
+  .btn-danger{background:var(--danger-bg);color:var(--danger)}
+  .btn-sm{padding:6px 11px;font-size:13px;border-radius:8px}
+  .btn:disabled{opacity:.45;cursor:not-allowed;transform:none !important;box-shadow:none !important}
+
+  /* login */
+  #loginView{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+    background:radial-gradient(1100px 520px at 8% -10%, rgba(228,149,43,.10), transparent 60%),
+      radial-gradient(900px 520px at 108% 112%, rgba(43,121,198,.10), transparent 60%),var(--bg)}
+  .login-card{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--radius);box-shadow:var(--shadow-lg);overflow:hidden}
+  .login-top{background:var(--brand);color:var(--brand-ink);padding:26px 26px 22px}
+  .login-mark{display:flex;align-items:center;gap:11px}
+  .login-mark .glyph{width:40px;height:40px;border-radius:9px;background:var(--signal);display:grid;
+    place-items:center;color:#231603;font-weight:700;font-size:16px;flex:none;
+    font-family:"IBM Plex Sans Condensed",sans-serif}
+  .login-mark h1{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:19px;margin:0;font-weight:700;line-height:1.15}
+  .login-mark .sub{font-size:12px;color:#9fb2c4;margin-top:1px}
+  .login-body{padding:22px 26px 24px}
+  .field{margin-bottom:15px}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:6px;
+    text-transform:uppercase;letter-spacing:.06em;font-family:"IBM Plex Sans Condensed",sans-serif}
+  .field select,.field input,.field textarea{width:100%;padding:11px 12px;border:1px solid var(--line);
+    border-radius:9px;background:var(--surface2);color:var(--ink)}
+  .field textarea{min-height:78px;resize:vertical;line-height:1.45}
+  .field select:focus,.field input:focus,.field textarea:focus{outline:none;border-color:var(--signal);background:var(--surface)}
+  .pin-input{letter-spacing:.4em;font-family:"IBM Plex Mono",monospace}
+  .login-note{font-size:12px;color:var(--muted);margin-top:14px;text-align:center;line-height:1.5}
+  .form-err{background:var(--danger-bg);color:var(--danger);font-size:13px;padding:9px 12px;border-radius:8px;margin-bottom:14px;font-weight:500}
+
+  /* shell */
+  #app{display:none}
+  .topbar{position:sticky;top:0;z-index:40;background:var(--brand);color:var(--brand-ink);
+    display:flex;align-items:center;gap:16px;padding:0 18px;height:58px;box-shadow:var(--shadow)}
+  .topbar .glyph{width:31px;height:31px;border-radius:7px;background:var(--signal);display:grid;
+    place-items:center;color:#231603;font-weight:700;font-size:13px;flex:none;
+    font-family:"IBM Plex Sans Condensed",sans-serif}
+  .topbar .title{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:16px;white-space:nowrap}
+  .topbar .clock{font-family:"IBM Plex Mono",monospace;font-size:13px;color:#9fb2c4;
+    padding-left:14px;border-left:1px solid rgba(255,255,255,.14)}
+  .topbar .spacer{flex:1}
+  .navtabs{display:flex;gap:2px}
+  .navtab{padding:8px 14px;border-radius:8px;font-family:"IBM Plex Sans Condensed",sans-serif;
+    font-weight:600;font-size:14px;color:#a9bccd}
+  .navtab:hover{color:#fff;background:rgba(255,255,255,.06)}
+  .navtab.active{color:#231603;background:var(--signal)}
+  .whoami{display:flex;align-items:center;gap:9px;font-size:13px}
+  .rolechip{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;font-size:11px;
+    text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:20px;color:#fff}
+  .icon-btn{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;color:#a9bccd;background:rgba(255,255,255,.06)}
+  .icon-btn:hover{color:#fff;background:rgba(255,255,255,.14)}
+
+  .wrap{max-width:1140px;margin:0 auto;padding:26px 20px 60px}
+  .page-head{margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap}
+  .page-head h2{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:25px;font-weight:700;margin:2px 0 3px}
+  .page-head p{margin:0;color:var(--muted);font-size:14px;max-width:70ch}
+
+  .board{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+  .tile{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:20px 20px 18px 24px;overflow:hidden;transition:.16s;display:flex;flex-direction:column;gap:12px}
+  .tile:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+  .tile .spine{position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--tc,var(--muted))}
+  .tile-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .tile h3{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:18px;font-weight:700;margin:0}
+  .tile .code{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);padding:3px 7px;border:1px solid var(--line);border-radius:6px}
+  .tile p{margin:0;color:var(--ink2);font-size:13.5px;flex:1}
+  .tile .db{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);
+    font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  .db .dot{width:7px;height:7px;border-radius:50%;background:var(--tc,var(--muted))}
+  .lock{font-size:11px;color:var(--muted)}
+  .tile-foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--radius);padding:34px 22px;text-align:center;color:var(--muted)}
+  .empty strong{color:var(--ink);display:block;margin-bottom:5px;font-size:15px}
+
+  /* subnav / cards / tables */
+  .subnav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;border-bottom:1px solid var(--line);padding-bottom:12px}
+  .subnav button{padding:7px 13px;border-radius:8px;font-weight:600;font-size:13.5px;color:var(--muted);font-family:"IBM Plex Sans Condensed",sans-serif}
+  .subnav button.active{background:var(--brand);color:var(--brand-ink)}
+  .subnav button:hover:not(.active){background:var(--surface2);color:var(--ink)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px}
+  .card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+  .card h3{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:16px;margin:0 0 3px;font-weight:700}
+  .card .hint{font-size:12.5px;color:var(--muted);margin:0}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;font-family:"IBM Plex Sans Condensed",sans-serif;text-transform:uppercase;
+    letter-spacing:.05em;font-size:11px;color:var(--muted);padding:0 10px 8px 0;font-weight:600}
+  td{padding:9px 10px 9px 0;border-top:1px solid var(--line2);vertical-align:middle}
+  td input,td select{padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface2);color:var(--ink);width:100%}
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:6px;margin:2px 4px 2px 0;
+    background:var(--surface2);border:1px solid var(--line);font-family:"IBM Plex Mono",monospace}
+  textarea.code{width:100%;min-height:150px;padding:12px;border:1px solid var(--line);border-radius:9px;
+    background:var(--surface2);color:var(--ink);font-family:"IBM Plex Mono",monospace;font-size:12.5px;resize:vertical}
+
+  /* stat strip + badges */
+  .statstrip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  @media(max-width:720px){.statstrip{grid-template-columns:1fr 1fr}}
+  .statbox{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+  .statbox .sl{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:11px;font-weight:600;
+    text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .statbox .sv{font-family:"IBM Plex Mono",monospace;font-size:30px;font-weight:600;margin-top:4px;line-height:1}
+  .badge{display:inline-flex;align-items:center;font-family:"IBM Plex Sans Condensed",sans-serif;
+    font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em}
+  .b-gray{background:var(--line2);color:var(--muted)} .b-blue{background:var(--info-bg);color:var(--info)}
+  .b-amber{background:var(--warn-bg);color:var(--warn)} .b-green{background:var(--ok-bg);color:var(--ok)}
+  .b-red{background:var(--danger-bg);color:var(--danger)}
+
+  .lrow{display:flex;align-items:flex-start;gap:14px;padding:13px 0;border-bottom:1px solid var(--line2)}
+  .lrow:last-child{border-bottom:none}
+  .lrow .li{flex:1;min-width:0}
+  .lrow .li h4{font-size:14.5px;font-weight:600;margin:0 0 2px}
+  .lrow .li p{font-size:12.5px;color:var(--muted);margin:0}
+  .lrow .chips{margin-top:7px;display:flex;flex-wrap:wrap;gap:6px}
+  .statusbtns{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .sbtn{border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:12px;
+    font-weight:600;padding:6px 11px;border-radius:20px;font-family:"IBM Plex Sans Condensed",sans-serif}
+  .sbtn.on-ns{background:var(--line2);color:var(--ink);border-color:var(--muted)}
+  .sbtn.on-ip{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
+  .sbtn.on-dn{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+  .sbtn.on-bl{background:var(--danger-bg);color:var(--danger);border-color:var(--danger)}
+
+  /* reports desk */
+  .desk{display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start}
+  @media(max-width:860px){.desk{grid-template-columns:1fr}}
+  .rgroup{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:14px;overflow:hidden}
+  .rgroup-head{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line2);background:var(--surface2)}
+  .rgroup-head .spine{width:5px;height:20px;border-radius:3px;background:var(--tc,var(--muted))}
+  .rgroup-head h3{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:16px;font-weight:700;margin:0}
+  .rgroup-head .badge{margin-left:auto}
+  .rrow{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line2)}
+  .rrow:last-child{border-bottom:none} .rrow:hover{background:var(--surface2)}
+  .rrow input[type=checkbox]{width:18px;height:18px;accent-color:var(--signal);flex:none;cursor:pointer}
+  .rrow .rname{font-weight:600;font-size:14px} .rrow .rdesc{font-size:12.5px;color:var(--muted)}
+  .rrow.disabled{opacity:.5}
+  .runpanel{position:sticky;top:76px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .runpanel-head{padding:15px 16px;border-bottom:1px solid var(--line2)}
+  .runpanel-head h3{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:16px;margin:0 0 2px;font-weight:700}
+  .runpanel-head p{margin:0;font-size:12.5px;color:var(--muted)}
+  .runpanel-body{padding:14px 16px}
+  .selcount{font-family:"IBM Plex Mono",monospace;font-size:28px;font-weight:600;line-height:1}
+  .selcount small{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:12px;color:var(--muted);
+    font-weight:600;text-transform:uppercase;letter-spacing:.06em;display:block;margin-top:3px}
+  .runlog{margin-top:14px;border-top:1px solid var(--line2);max-height:280px;overflow:auto}
+  .logitem{display:flex;align-items:center;gap:9px;padding:9px 2px;border-bottom:1px solid var(--line2);font-size:13px}
+  .logitem:last-child{border-bottom:none}
+  .stchip{font-size:10px;font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;text-transform:uppercase;
+    letter-spacing:.05em;padding:3px 8px;border-radius:20px;flex:none}
+  .st-run{background:var(--warn-bg);color:var(--warn)} .st-ok{background:var(--ok-bg);color:var(--ok)}
+  .st-skip{background:var(--line2);color:var(--muted)} .st-err{background:var(--danger-bg);color:var(--danger)}
+
+  /* pw gate */
+  .gate{max-width:400px;margin:40px auto;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--radius);box-shadow:var(--shadow);padding:26px;text-align:center}
+  .gate .lockglyph{width:46px;height:46px;border-radius:11px;background:var(--surface2);border:1px solid var(--line);
+    display:grid;place-items:center;margin:0 auto 14px;font-size:22px}
+  .gate h3{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:19px;margin:0 0 4px;font-weight:700}
+  .gate p{color:var(--muted);font-size:13px;margin:0 0 18px}
+
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(8,16,26,.6);z-index:60;display:none;align-items:flex-start;
+    justify-content:center;padding:24px;overflow-y:auto}
+  .modal.open{display:flex}
+  .modal-box{background:var(--surface);border:1px solid var(--line);border-radius:16px;width:100%;max-width:520px;
+    margin:36px auto;box-shadow:var(--shadow-lg);overflow:hidden}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line2)}
+  .modal-head h3{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:17px;margin:0;font-weight:700}
+  .modal-body{padding:18px 20px}
+  .modal-foot{display:flex;gap:8px;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line2);background:var(--surface2)}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:520px){.g2{grid-template-columns:1fr}}
+  .close-x{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--muted);background:var(--surface2)}
+  .close-x:hover{color:var(--ink)}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;
+    background:var(--brand);color:var(--brand-ink);padding:11px 18px;border-radius:10px;font-size:14px;
+    font-weight:500;box-shadow:var(--shadow-lg);transition:.25s;z-index:80;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media(prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+  @media(max-width:640px){.topbar .title,.topbar .clock{display:none}.navtab{padding:8px 10px}.wrap{padding:20px 14px 50px}}
+  @media print{.topbar,.subnav,.no-print,.btn{display:none !important}body{background:#fff}.wrap{padding:0}}
 </style>
 </head>
 <body>
-<nav class="topnav">
-  <div class="brand">IC <span>Team Hub</span></div>
-  <div class="nav-right">
-    <div class="mode-pills" id="modePills" style="display:none;">
-      <button class="mode-pill active" onclick="switchRole('specialist')">📋 IC Specialist</button>
-      <button class="mode-pill" onclick="switchRole('manager')">&#9881;&#65039; Manager</button>
-    </div>
-    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn" title="Toggle light/dark">🌙</button>
-    <button class="sm-btn no-print" id="logoutBtn" onclick="logout()" style="display:none;">Log Out</button>
-  </div>
-</nav>
 
 <!-- LOGIN -->
-<div id="screen-login" class="screen active">
-  <div class="pin-screen">
-    <div class="pin-box">
-      <div class="pin-icon">🔐</div>
-      <h2>IC Team Hub</h2>
-      <p>Select your role and enter your PIN</p>
-      <div class="pin-role-select">
-        <button class="pin-role-btn active" id="roleSpec" onclick="selectRole('specialist')">IC Specialist</button>
-        <button class="pin-role-btn" id="roleMgr" onclick="selectRole('manager')">IC Manager</button>
+<div id="loginView">
+  <div class="login-card">
+    <div class="login-top">
+      <div class="login-mark">
+        <div class="glyph">IC</div>
+        <div><h1 id="loginOrg">The IC Operations Hub</h1><div class="sub" id="loginSub">Inventory Control · one front door</div></div>
       </div>
-      <div class="pin-dots" id="pinDots">
-        <div class="pin-dot" id="d0"></div><div class="pin-dot" id="d1"></div>
-        <div class="pin-dot" id="d2"></div><div class="pin-dot" id="d3"></div>
-      </div>
-      <div class="pin-error" id="pinError"></div>
-      <div class="pin-keypad">
-        <button class="pin-key" onclick="pk('1')">1</button>
-        <button class="pin-key" onclick="pk('2')">2</button>
-        <button class="pin-key" onclick="pk('3')">3</button>
-        <button class="pin-key" onclick="pk('4')">4</button>
-        <button class="pin-key" onclick="pk('5')">5</button>
-        <button class="pin-key" onclick="pk('6')">6</button>
-        <button class="pin-key" onclick="pk('7')">7</button>
-        <button class="pin-key" onclick="pk('8')">8</button>
-        <button class="pin-key" onclick="pk('9')">9</button>
-        <button class="pin-key clr" onclick="pc()">CLR</button>
-        <button class="pin-key" onclick="pk('0')">0</button>
-        <button class="pin-key del" onclick="pd()">&#9003;</button>
-      </div>
+    </div>
+    <div class="login-body">
+      <div id="loginErr" class="form-err hidden"></div>
+      <div class="field"><label for="loginName">Who's signing in</label><select id="loginName"></select></div>
+      <div class="field"><label for="loginPin">Hub PIN</label>
+        <input id="loginPin" class="pin-input" type="password" inputmode="numeric" autocomplete="off" placeholder="••••" maxlength="8"></div>
+      <button class="btn btn-signal" style="width:100%;justify-content:center;padding:12px" onclick="doLogin()">Sign in</button>
+      <div class="login-note">The hub controls what you see and which reports you can run. Each application keeps its own login.</div>
     </div>
   </div>
 </div>
 
-<!-- IC SPECIALIST -->
-<div id="screen-specialist" class="screen">
-  <div class="worker-shell">
-    <div class="worker-header">
-      <h2>IC Specialist Hub</h2>
-      <p>Select your name to see today's assignments</p>
-      <div class="date-chip" id="workerDate"></div>
-    </div>
-    <div class="card" id="whoCard">
-      <div class="card-label">Who are you?</div>
-      <div class="worker-select-list" id="workerSelectList">
-        <div class="empty" style="border:none;padding:8px 0;">No team members yet — manager must add them.</div>
-      </div>
-    </div>
-    <div id="myAssignmentsCard" style="display:none;">
-      <div class="card">
-        <div class="card-label">&#128203; My Assignments Today</div>
-        <div id="myAssignmentsList"></div>
-      </div>
-      <div class="card">
-        <div class="card-label">&#9208; Log Downtime</div>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">No work available? Log it so it appears on the daily report.</p>
-        <div class="downtime-form">
-          <div class="field"><label>Reason</label>
-            <select id="dtReason">
-              <option value="">Select reason...</option>
-              <option>System Down</option><option>Waiting for Assignments</option>
-              <option>Equipment Issue</option><option>Waiting on Material</option>
-              <option>Meeting / Training</option><option>Other</option>
-            </select>
-          </div>
-          <div class="field"><label>Duration (hours)</label><input type="number" id="dtHours" min="0.25" step="0.25" placeholder="e.g. 1.5"/></div>
-          <div class="field"><label>Notes (optional)</label><textarea id="dtNotes" placeholder="Any additional detail..."></textarea></div>
-          <button class="big-btn warning" onclick="logDowntime()">&#9208; Submit Downtime</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-label">&#128279; IC Portal &amp; Tools</div>
-        <div class="portal-grid" id="workerPortalLinks">
-          <div class="empty" style="margin-top:0;grid-column:span 2;border:none;padding:8px 0;">No links added yet.</div>
-        </div>
-      </div>
-      <button class="big-btn neutral" onclick="clearWorkerSelection()" style="margin-top:4px;margin-bottom:24px;">&#8592; Switch Name</button>
-    </div>
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="glyph">IC</div>
+    <div class="title" id="barTitle">The IC Operations Hub</div>
+    <div class="clock mono" id="clock">--:--:--</div>
+    <div class="spacer"></div>
+    <div class="navtabs" id="navtabs"></div>
+    <div class="spacer"></div>
+    <div class="whoami"><span id="barUser" class="cond" style="font-weight:600"></span><span id="barRole" class="rolechip"></span></div>
+    <span id="cloudDot" title="Sync status" style="width:9px;height:9px;border-radius:50%;background:#68788A;flex:none;box-shadow:0 0 0 3px rgba(255,255,255,.06)"></span>
+    <button class="icon-btn" title="Toggle theme" onclick="toggleTheme()">◐</button>
+    <button class="icon-btn" title="Sign out" onclick="logout()">⏻</button>
   </div>
-</div>
 
-<!-- MANAGER -->
-<div id="screen-manager" class="screen">
-  <div class="mgr-shell">
-    <div class="mgr-tabs">
-      <button class="mgr-tab active" onclick="mgrTab('overview',this)">Dashboard</button>
-      <button class="mgr-tab" onclick="mgrTab('team',this)">Team</button>
-      <button class="mgr-tab" onclick="mgrTab('tasks',this)">Assignments</button>
-      <button class="mgr-tab" onclick="mgrTab('labor',this)">Labor Hours</button>
-      <button class="mgr-tab" onclick="mgrTab('downtime',this)">Downtime</button>
-      <button class="mgr-tab" onclick="mgrTab('links',this)">Portal Links</button>
-      <button class="mgr-tab" onclick="mgrTab('report',this)">Print Report</button>
+  <div class="wrap">
+    <!-- LAUNCH -->
+    <div id="launchView">
+      <div class="page-head"><div><div class="eyebrow">Launch</div><h2>Your applications</h2>
+        <p>Everything you're cleared to use. Opening an app takes you straight to it — it keeps its own login.</p></div></div>
+      <div class="board" id="launchBoard"></div>
     </div>
-    <!-- OVERVIEW -->
-    <div id="mgr-overview" class="mgr-section active">
-      <div class="stat-strip">
-        <div class="stat-box"><div class="sl">Team Members</div><div class="sv" id="stMembers">0</div></div>
-        <div class="stat-box"><div class="sl">Open Tasks</div><div class="sv" id="stOpen">0</div></div>
-        <div class="stat-box"><div class="sl">Completed Today</div><div class="sv" id="stDone">0</div></div>
-        <div class="stat-box"><div class="sl">Labor Hrs Today</div><div class="sv" id="stLabor">0</div></div>
-        <div class="stat-box"><div class="sl">Downtime Hrs</div><div class="sv" id="stDown">0</div></div>
-      </div>
-      <div class="panel">
-        <div class="panel-head">
-          <div><h2>Today's Assignments</h2><p id="todayLabel"></p></div>
-          <button class="sm-btn primary no-print" onclick="openTaskModal()">+ Add Assignment</button>
-        </div>
-        <div id="overviewTaskList"></div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><div><h2>Downtime Today</h2><p>Logged by IC Specialists</p></div></div>
-        <div id="overviewDowntime"></div>
-      </div>
-    </div>
+
     <!-- TEAM -->
-    <div id="mgr-team" class="mgr-section">
-      <div class="panel">
-        <div class="panel-head">
-          <div><h2>Team Members</h2><p>Add everyone who will appear on the IC Specialist screen</p></div>
-          <button class="sm-btn primary no-print" onclick="openMemberModal()">+ Add Member</button>
+    <div id="teamView" class="hidden"></div>
+
+    <!-- REPORTS -->
+    <div id="reportsView" class="hidden">
+      <div class="page-head"><div><div class="eyebrow">Reporting desk</div><h2>Run reports</h2>
+        <p>Pick reports across your applications and run them together. Each one opens as its own output.</p></div></div>
+      <div class="desk">
+        <div id="reportCatalog"></div>
+        <div class="runpanel">
+          <div class="runpanel-head"><h3>Run queue</h3><p>Selected reports run one after another.</p></div>
+          <div class="runpanel-body">
+            <div class="selcount"><span id="selCount">0</span><small>reports selected</small></div>
+            <div style="display:flex;gap:8px;margin-top:14px">
+              <button class="btn btn-signal btn-sm" style="flex:1;justify-content:center" onclick="runSelected()">Run selected</button>
+              <button class="btn btn-ghost btn-sm" onclick="clearSel()">Clear</button>
+            </div>
+            <div class="runlog" id="runLog"></div>
+          </div>
         </div>
-        <div id="memberList"></div>
       </div>
     </div>
-    <!-- TASKS -->
-    <div id="mgr-tasks" class="mgr-section">
-      <div class="panel">
-        <div class="panel-head">
-          <div><h2>Assignments</h2><p>Create tasks, assign to team members, attach PDF or Excel files</p></div>
-          <button class="sm-btn primary no-print" onclick="openTaskModal()">+ Add Assignment</button>
-        </div>
-        <div id="taskList"></div>
-      </div>
-    </div>
-    <!-- LABOR -->
-    <div id="mgr-labor" class="mgr-section">
-      <div class="panel no-print">
-        <div class="panel-head"><div><h2>Log Labor Hours</h2><p>Track hours worked per person per task</p></div></div>
-        <div class="grid3">
-          <div class="field"><label>Team Member</label><select id="laborPerson"></select></div>
-          <div class="field"><label>Assignment / Task</label><input type="text" id="laborTask" placeholder="Cycle count, shortage research..."/></div>
-          <div class="field"><label>Hours Worked</label><input type="number" id="laborHrs" min="0.25" step="0.25" placeholder="e.g. 3.5"/></div>
-          <div class="field"><label>Output / Result</label><input type="text" id="laborOutput" placeholder="Bins counted, lines cleared..."/></div>
-          <div class="field" style="grid-column:span 2"><label>Notes</label><input type="text" id="laborNotes" placeholder="Issues, blockers, follow-up..."/></div>
-        </div>
-        <div class="btn-row">
-          <button class="sm-btn primary" onclick="saveLabor()">Save Labor Entry</button>
-          <button class="sm-btn" onclick="clearLaborForm()">Clear</button>
-        </div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><div><h2>Labor Log</h2><p>All logged hours by date</p></div></div>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Date</th><th>Person</th><th>Assignment</th><th>Hours</th><th>Output</th><th>Notes</th><th class="no-print">Del</th></tr></thead>
-          <tbody id="laborTableBody"></tbody>
-        </table></div>
-      </div>
-    </div>
-    <!-- DOWNTIME -->
-    <div id="mgr-downtime" class="mgr-section">
-      <div class="panel">
-        <div class="panel-head"><div><h2>Downtime Log</h2><p>Submitted by IC Specialists — appears on the daily director report</p></div></div>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Date</th><th>Person</th><th>Reason</th><th>Hours</th><th>Notes</th><th class="no-print">Del</th></tr></thead>
-          <tbody id="downtimeTableBody"></tbody>
-        </table></div>
-      </div>
-    </div>
-    <!-- LINKS -->
-    <div id="mgr-links" class="mgr-section">
-      <div class="panel no-print">
-        <div class="panel-head"><div><h2>Manage Portal Links</h2><p>These appear on the IC Specialist screen as quick-launch tiles</p></div></div>
-        <div class="grid3">
-          <div class="field"><label>Link Name</label><input type="text" id="linkName" placeholder="IC Portal, WMS, Returns..."/></div>
-          <div class="field"><label>URL</label><input type="url" id="linkUrl" placeholder="https://..."/></div>
-          <div class="field"><label>Icon (emoji)</label><input type="text" id="linkIcon" placeholder="&#128230;" maxlength="4"/></div>
-        </div>
-        <div class="btn-row">
-          <button class="sm-btn primary" onclick="saveLink()">Save Link</button>
-          <button class="sm-btn" onclick="clearLinkForm()">Clear</button>
-        </div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><div><h2>Current Links</h2></div></div>
-        <div id="linkList"></div>
-      </div>
-    </div>
-    <!-- REPORT -->
-    <div id="mgr-report" class="mgr-section">
-      <div class="panel no-print">
-        <div class="panel-head"><div><h2>Director Daily Report</h2><p>Print or save as PDF — shows assignments, labor hours, and downtime</p></div></div>
-        <button class="sm-btn primary" onclick="window.print()">&#128438; Print Report</button>
-      </div>
-      <div id="rptPreview">
-        <div class="print-header"><h1>IC Team — Daily Director Report</h1><p id="rptDate"></p></div>
-        <div class="stat-strip" id="rptStats"></div>
-        <div class="panel"><div class="panel-head"><div><h2>Assignments</h2></div></div><div id="rptTasks"></div></div>
-        <div class="panel"><div class="panel-head"><div><h2>Labor Hours</h2></div></div>
-          <div class="table-wrap"><table>
-            <thead><tr><th>Person</th><th>Assignment</th><th>Hours</th><th>Output</th><th>Notes</th></tr></thead>
-            <tbody id="rptLaborBody"></tbody>
-          </table></div>
-        </div>
-        <div class="panel"><div class="panel-head"><div><h2>Downtime</h2><p>Periods when no productive work was available</p></div></div><div id="rptDowntime"></div></div>
-      </div>
-    </div>
+
+    <!-- ADMIN -->
+    <div id="adminView" class="hidden"></div>
   </div>
 </div>
 
-<!-- MEMBER MODAL -->
-<div class="modal" id="memberModal">
-  <div class="modal-box">
-    <div class="modal-head"><h3>Add Team Member</h3><button class="close-btn" onclick="cm('memberModal')">&#215;</button></div>
-    <div class="grid2">
-      <div class="field"><label>Full Name</label><input type="text" id="mName" placeholder="Jane Smith"/></div>
-      <div class="field"><label>Role / Title</label><input type="text" id="mRole" placeholder="IC Specialist"/></div>
-      <div class="field"><label>Shift</label><input type="text" id="mShift" placeholder="7:00 AM - 3:30 PM"/></div>
-      <div class="field"><label>Status</label><select id="mStatus"><option>Active</option><option>Training</option><option>On Leave</option></select></div>
-    </div>
-    <div class="field" style="margin-top:12px;"><label>Notes / Skills</label><textarea id="mNotes" placeholder="Skills, specialties, notes..."></textarea></div>
-    <div class="btn-row">
-      <button class="sm-btn primary" onclick="saveMember()">Save Member</button>
-      <button class="sm-btn" onclick="cm('memberModal')">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- TASK MODAL -->
-<div class="modal" id="taskModal">
-  <div class="modal-box">
-    <div class="modal-head"><h3>Add Assignment</h3><button class="close-btn" onclick="cm('taskModal')">&#215;</button></div>
-    <div class="grid2">
-      <div class="field" style="grid-column:span 2"><label>Task / Assignment</label><input type="text" id="tTitle" placeholder="Cycle count aisle 12..."/></div>
-      <div class="field"><label>Assigned To</label><select id="tPerson"></select></div>
-      <div class="field"><label>Area / Location</label><input type="text" id="tArea" placeholder="NAPA, Outbound, Primary Bins..."/></div>
-      <div class="field"><label>Priority</label><select id="tPriority"><option>Normal</option><option>High</option><option>Urgent</option></select></div>
-      <div class="field"><label>Status</label><select id="tStatus"><option>Not Started</option><option>In Progress</option><option>Blocked</option><option>Completed</option></select></div>
-    </div>
-    <div class="field" style="margin-top:12px;"><label>Instructions / Notes</label><textarea id="tNotes" placeholder="What needs to be done, special instructions..."></textarea></div>
-    <div style="margin-top:14px;">
-      <div class="card-label" style="margin-bottom:8px;">&#128206; Attach Files (PDF or Excel)</div>
-      <div class="file-drop" id="fileDrop" onclick="document.getElementById('fileInput').click()" ondragover="fdOver(event)" ondragleave="fdLeave(event)" ondrop="fdDrop(event)">
-        <input type="file" id="fileInput" multiple accept=".pdf,.xlsx,.xls,.csv" onchange="fileSelected(event)"/>
-        <div>&#128193; Tap to attach PDF or Excel files</div>
-        <div style="font-size:12px;margin-top:4px;opacity:.7;">PDF, XLSX, XLS, CSV accepted</div>
-      </div>
-      <div class="fp-list" id="fpList"></div>
-    </div>
-    <div class="btn-row">
-      <button class="sm-btn primary" onclick="saveTask()">Save Assignment</button>
-      <button class="sm-btn" onclick="cm('taskModal')">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- FILE VIEWER MODAL -->
-<div class="modal" id="fvModal">
-  <div class="fv-content">
-    <div class="modal-head">
-      <h3 id="fvTitle">File Viewer</h3>
-      <button class="close-btn" onclick="cm('fvModal')">&#215;</button>
-    </div>
-    <div style="margin-bottom:10px;display:flex;gap:8px;" class="no-print">
-      <a id="fvDownload" class="sm-btn primary" download>&#11015; Download</a>
-      <span id="fvNote" style="font-size:13px;color:var(--muted);align-self:center;"></span>
-    </div>
-    <iframe id="fvFrame" title="File Preview"></iframe>
-  </div>
-</div>
+<!-- MODAL -->
+<div class="modal" id="modal"><div class="modal-box">
+  <div class="modal-head"><h3 id="modalTitle"></h3><button class="close-x" onclick="closeModal()">✕</button></div>
+  <div class="modal-body" id="modalBody"></div>
+  <div class="modal-foot" id="modalFoot"></div>
+</div></div>
 
 <div class="toast" id="toast"></div>
 
-<script>
-// PINS
-const PINS={specialist:"7150",manager:"1988"};
-let pinRole="specialist",pinBuf="",currentRole=null;
+<!-- Firebase (compat build, loads from Google CDN on the deployed site) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-function selectRole(r){
-  pinRole=r;pinBuf="";updDots();
-  document.getElementById("pinError").textContent="";
-  document.getElementById("roleSpec").classList.toggle("active",r==="specialist");
-  document.getElementById("roleMgr").classList.toggle("active",r==="manager");
+<script>
+/* ════════════════ CONFIG — drives the whole hub. Edit here or in Admin. ════════════════ */
+const DEFAULT_CONFIG = {
+  org:"The IC Operations Hub",
+  sub:"Chapman Inventory Control",
+  adminPassword:"1234",
+
+  roles:{
+    admin:{label:"Admin",color:"#12202E"}, icmgr:{label:"IC Manager",color:"#3B49A8"},
+    icteam:{label:"IC Specialist",color:"#2A79C6"}, outbound:{label:"Outbound Clerk",color:"#0E7C86"},
+    overpull:{label:"Over Pull",color:"#E4952B"}, reports:{label:"Reports",color:"#6B4BB6"},
+    dock:{label:"Dock Manager",color:"#12968E"}, floor:{label:"Floor / Picker",color:"#68788A"}
+  },
+
+  // Hub sign-in. Replace the demo in Admin → People, then delete it.
+  people:[{name:"Demo Admin (change me)",pin:"0000",role:"admin"}],
+
+  // The four applications. Returns is password-gated by default.
+  apps:[
+    {key:"demand",name:"Demand Bin Verification",code:"BIN VERIFY",color:"#12968E",db:"GitHub Pages",
+      desc:"Check bin coverage against a demand window by division and build Apprise adjustments.",
+      url:"https://phocas88.github.io/Demand-Bin-Verification/",enabled:true,password:"",
+      access:["admin","icmgr","icteam"]},
+    {key:"shortage",name:"Shortage & Over Pull Portal",code:"SHORT/OP",color:"#E4952B",db:"Supabase",
+      desc:"Log shortages and over pulls, run the IC Verify sheet, and print check sheets.",
+      url:"https://phocas88.github.io/pick_shortages/",enabled:true,password:"",
+      access:["admin","icmgr","icteam","outbound","overpull","reports"]},
+    {key:"ic",name:"IC Portal",code:"IC",color:"#2A79C6",db:"Google Sheets",
+      desc:"Inventory-control inquiry tickets — Pick Demand, receiving, cycle count — with the two-way log.",
+      url:"https://phocas88.github.io/Chapman_Inventory_Control_Portal/",enabled:true,password:"",
+      access:["admin","icmgr","icteam","dock"]},
+    {key:"returns",name:"Chapman Returns",code:"RETURNS",color:"#6B4BB6",db:"GitHub Pages",
+      desc:"Returns processing and history. Password-protected.",
+      url:"https://phocas88.github.io/ChapmanReturns/",enabled:true,password:"returns",
+      access:["admin","icmgr","icteam","dock","outbound"]}
+  ],
+
+  reports:{
+    shortage:{connected:false,items:[
+      {id:"short_summary",name:"Shortage Summary",desc:"Active shortages by division and shift."},
+      {id:"short_check",name:"Shortage Check Sheet",desc:"Bin-ordered sheet for the floor."},
+      {id:"op_log",name:"Over Pull Log",desc:"Over-pull entries with pack station."}]},
+    ic:{connected:false,items:[
+      {id:"ic_open",name:"Open Inquiries",desc:"Tickets not yet completed."},
+      {id:"ic_demand",name:"Pick Demand Tickets",desc:"Pick-demand category only."}]},
+    demand:{connected:false,items:[
+      {id:"bin_coverage",name:"Bin Coverage",desc:"Coverage vs demand window, by division."},
+      {id:"bin_apprise",name:"Apprise Adjustments",desc:"Signed adjustment export."}]},
+    returns:{connected:false,items:[
+      {id:"ret_log",name:"Returns Log",desc:"Processed returns over a date range."}]}
+  },
+  reportRoles:["admin","icmgr","reports"],
+  adminRoles:["admin","icmgr"],
+  teamManagerRoles:["admin","icmgr"]
+};
+
+/* ════════════════ FIREBASE — shared, live team board across all devices ════════════════ */
+const FIREBASE_CONFIG = {
+  apiKey:"AIzaSyDBcLxaaccvW2kETuDgX_zgQxieSbAymNU",
+  authDomain:"ic-team-hub.firebaseapp.com",
+  projectId:"ic-team-hub",
+  storageBucket:"ic-team-hub.firebasestorage.app",
+  messagingSenderId:"1080306198225",
+  appId:"1:1080306198225:web:40e6e4a92e9080b30887f0"
+};
+
+/* Report adapters — wired to each app's database once files + keys are added. */
+const adapters={
+  shortage:{async run(){return{status:"not_connected"}}}, ic:{async run(){return{status:"not_connected"}}},
+  demand:{async run(){return{status:"not_connected"}}}, returns:{async run(){return{status:"not_connected"}}}
+};
+
+/* safe storage — persists on the deployed site, falls back to memory in sandboxes */
+const mem={};
+const store={
+  get(k){try{const v=localStorage.getItem(k);return v??mem[k]??null}catch(e){return mem[k]??null}},
+  set(k,v){try{localStorage.setItem(k,v)}catch(e){}mem[k]=v},
+  del(k){try{localStorage.removeItem(k)}catch(e){}delete mem[k]}
+};
+
+/* state */
+let CONFIG, TEAM, session=null, sel=new Set(), adminUnlocked=false, adminTab="links", teamTab="dashboard", selMember=null;
+let currentView="launch";
+let db=null, CLOUD_OK=false, suppressPush=false;
+const $=id=>document.getElementById(id);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const today=()=>new Date().toISOString().slice(0,10);
+function fmtDate(d){const x=new Date(d+"T00:00:00");return x.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric'})}
+
+function loadConfig(){
+  const s=store.get("ichub_config");
+  CONFIG = s ? (()=>{try{return JSON.parse(s)}catch(e){return structuredClone(DEFAULT_CONFIG)}})() : structuredClone(DEFAULT_CONFIG);
+  ["reportRoles","adminRoles","teamManagerRoles","adminPassword"].forEach(k=>{ if(CONFIG[k]===undefined) CONFIG[k]=DEFAULT_CONFIG[k]; });
 }
-function pk(k){if(pinBuf.length>=4)return;pinBuf+=k;updDots();if(pinBuf.length===4)setTimeout(checkPin,120);}
-function pd(){pinBuf=pinBuf.slice(0,-1);updDots();}
-function pc(){pinBuf="";updDots();document.getElementById("pinError").textContent="";}
-function updDots(){for(let i=0;i<4;i++)document.getElementById("d"+i).classList.toggle("filled",i<pinBuf.length);}
-function checkPin(){
-  if(pinBuf===PINS[pinRole]){
-    currentRole=pinRole;
-    document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
-    document.getElementById("screen-"+(pinRole==="manager"?"manager":"specialist")).classList.add("active");
-    document.getElementById("modePills").style.display="flex";
-    document.getElementById("logoutBtn").style.display="inline-flex";
-    document.querySelectorAll(".mode-pill").forEach(p=>p.classList.remove("active"));
-    document.querySelectorAll(".mode-pill")[pinRole==="manager"?1:0].classList.add("active");
-    renderAll();
-  } else {
-    document.getElementById("pinError").textContent="Incorrect PIN. Try again.";
-    pinBuf="";updDots();
+function saveConfig(){store.set("ichub_config",JSON.stringify(CONFIG));pushConfig()}
+function loadTeam(){
+  const s=store.get("ichub_team");
+  TEAM = s ? (()=>{try{return JSON.parse(s)}catch(e){return{members:[],assignments:[],issues:[]}}})() : {members:[],assignments:[],issues:[]};
+  TEAM.members=TEAM.members||[]; TEAM.assignments=TEAM.assignments||[]; TEAM.issues=TEAM.issues||[];
+}
+function saveTeam(){store.set("ichub_team",JSON.stringify(TEAM));pushTeam()}
+
+/* ---------- cloud sync ---------- */
+function setCloudStatus(s){
+  const el=$("cloudDot"); if(!el)return;
+  const map={synced:["#3FBF7F","Synced with the team"],connecting:["#E4952B","Connecting…"],
+    local:["#68788A","This device only (offline)"],error:["#CE3F3F","Sync error — check Firebase setup"]};
+  const [c,t]=map[s]||map.local; el.style.background=c; el.title=t;
+}
+function initFirebase(){
+  if(typeof firebase==="undefined"||!firebase.initializeApp){ setCloudStatus("local"); return; }
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db=firebase.firestore();
+    firebase.auth().signInAnonymously().catch(e=>console.warn("Anonymous sign-in failed — enable it in Firebase Auth.",e));
+    CLOUD_OK=true; setCloudStatus("connecting"); subscribeCloud();
+  }catch(e){ console.warn("Firebase init failed",e); setCloudStatus("local"); }
+}
+function subscribeCloud(){
+  db.collection("meta").doc("config").onSnapshot(doc=>{
+    if(doc.exists&&doc.data().data){ suppressPush=true; CONFIG=doc.data().data;
+      store.set("ichub_config",JSON.stringify(CONFIG)); suppressPush=false; afterCloud(); }
+    else pushConfig();
+    setCloudStatus("synced");
+  }, e=>{ console.warn(e); setCloudStatus("error"); });
+  db.collection("meta").doc("team").onSnapshot(doc=>{
+    if(doc.exists&&doc.data().data){ suppressPush=true; TEAM=doc.data().data;
+      TEAM.members=TEAM.members||[];TEAM.assignments=TEAM.assignments||[];TEAM.issues=TEAM.issues||[];
+      store.set("ichub_team",JSON.stringify(TEAM)); suppressPush=false; afterCloud(); }
+    else pushTeam();
+  }, e=>console.warn(e));
+}
+function pushConfig(){ if(CLOUD_OK&&db&&!suppressPush) db.collection("meta").doc("config").set({data:CONFIG,updated:Date.now()}).catch(e=>console.warn(e)); }
+function pushTeam(){ if(CLOUD_OK&&db&&!suppressPush) db.collection("meta").doc("team").set({data:TEAM,updated:Date.now()}).catch(e=>console.warn(e)); }
+function afterCloud(){
+  if($("loginView").style.display!=="none"){ renderLoginNames(); return; }
+  if($("modal").classList.contains("open")) return;   // don't disrupt an open form
+  if(currentView==="team") renderTeam();
+  else if(currentView==="launch") renderLaunch();
+}
+
+function boot(){
+  loadConfig(); loadTeam();
+  const t=store.get("ichub_theme"); if(t) document.documentElement.dataset.theme=t;
+  $("loginOrg").textContent=CONFIG.org; $("loginSub").textContent=CONFIG.sub+" · one front door";
+  renderLoginNames();
+  const s=store.get("ichub_session"); if(s){try{session=JSON.parse(s);enterApp()}catch(e){}}
+  tick(); setInterval(tick,1000);
+  initFirebase();
+}
+function tick(){const el=$("clock");if(el)el.textContent=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+
+/* ---------- login ---------- */
+function renderLoginNames(){
+  $("loginName").innerHTML='<option value="">Select your name…</option>'+
+    CONFIG.people.map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join("");
+}
+function doLogin(){
+  const idx=$("loginName").value, pin=$("loginPin").value.trim();
+  if(idx===""){return showErr("loginErr","Select your name to continue.")}
+  const p=CONFIG.people[+idx];
+  if(!pin) return showErr("loginErr","Enter your hub PIN.");
+  if(pin!==String(p.pin)) return showErr("loginErr","That PIN doesn't match. Try again.");
+  session={name:p.name,role:p.role}; store.set("ichub_session",JSON.stringify(session));
+  $("loginPin").value=""; $("loginErr").classList.add("hidden"); enterApp();
+}
+function showErr(id,m){const e=$(id);e.textContent=m;e.classList.remove("hidden")}
+function enterApp(){
+  $("loginView").style.display="none"; $("app").style.display="block";
+  const person=CONFIG.people.find(p=>p.name===session.name)||{role:session.role,pages:session.pages,apps:session.apps};
+  session.role=person.role||session.role;
+  session.pages=effPages(person); session.apps=effApps(person);
+  const r=CONFIG.roles[session.role]||{label:session.role,color:"#68788A"};
+  $("barUser").textContent=session.name; $("barRole").textContent=r.label; $("barRole").style.background=r.color;
+  $("barTitle").textContent=CONFIG.org;
+  buildNav();
+  const first=["launch","team","reports","admin"].find(p=>session.pages.includes(p))||"launch";
+  showView(first);
+}
+function logout(){store.del("ichub_session");session=null;sel.clear();adminUnlocked=false;selMember=null;
+  $("app").style.display="none";$("loginView").style.display="flex";$("loginName").value=""}
+
+/* access — per user, with sensible fallback to role when not set explicitly */
+function effPages(p){
+  if(p&&Array.isArray(p.pages)) return p.pages;
+  const role=(p&&p.role)||session.role;
+  const pg=["launch","team"];
+  if(CONFIG.reportRoles.includes(role)) pg.push("reports");
+  if(CONFIG.adminRoles.includes(role)) pg.push("admin");
+  return pg;
+}
+function effApps(p){
+  if(p&&Array.isArray(p.apps)) return p.apps;
+  const role=(p&&p.role)||session.role;
+  return CONFIG.apps.filter(a=>a.access&&a.access.includes(role)).map(a=>a.key);
+}
+const canReports=()=>session.pages.includes("reports");
+const canAdmin=()=>session.pages.includes("admin");
+const canOpen=a=>session.apps.includes(a.key);
+const canManageTeam=()=>CONFIG.teamManagerRoles.includes(session.role);
+
+/* nav */
+function buildNav(){
+  const order=[["launch","Launch"],["team","Team"],["reports","Reports"],["admin","Admin"]];
+  const tabs=order.filter(([k])=>session.pages.includes(k));
+  $("navtabs").innerHTML=tabs.map(([k,l])=>`<button class="navtab" data-view="${k}" onclick="showView('${k}')">${l}</button>`).join("");
+}
+function showView(v){
+  currentView=v;
+  ["launch","team","reports","admin"].forEach(x=>$(x+"View").classList.toggle("hidden",x!==v));
+  document.querySelectorAll(".navtab").forEach(t=>t.classList.toggle("active",t.dataset.view===v));
+  if(v==="launch")renderLaunch();
+  if(v==="team")renderTeam();
+  if(v==="reports")renderReports();
+  if(v==="admin")renderAdmin();
+}
+
+/* ---------- launch ---------- */
+function renderLaunch(){
+  const mine=CONFIG.apps.filter(a=>a.enabled&&canOpen(a));
+  const b=$("launchBoard");
+  if(!mine.length){b.innerHTML=`<div class="empty"><strong>No applications assigned</strong>Ask an admin to grant your role access.</div>`;return}
+  b.innerHTML=mine.map(a=>{
+    const ready=!!a.url, locked=!!a.password;
+    return `<div class="tile" style="--tc:${a.color}"><div class="spine"></div>
+      <div class="tile-top"><h3>${esc(a.name)}</h3><span class="code mono">${esc(a.code)}</span></div>
+      <p>${esc(a.desc)}</p>
+      <div class="tile-foot">
+        <span class="db">${locked?'<span class="dot"></span>Protected':''}</span>
+        <button class="btn ${ready?'btn-primary':'btn-ghost'} btn-sm" ${ready?`onclick="openApp('${a.key}')"`:'disabled'}>
+          ${ready?(locked?'Open 🔒':'Open →'):'No link set'}</button>
+      </div></div>`;
+  }).join("");
+}
+function openApp(key){
+  const a=CONFIG.apps.find(x=>x.key===key); if(!a||!a.url)return;
+  if(a.password){ promptPassword(a.name,a.password,()=>window.open(a.url,"_blank","noopener")); }
+  else window.open(a.url,"_blank","noopener");
+}
+function promptPassword(name,expected,onOk){
+  modal(`🔒 ${esc(name)}`,
+    `<p class="hint" style="margin-bottom:14px">This application is password-protected.</p>
+     <div class="field"><label>Password</label><input id="pwInput" type="password" autocomplete="off" placeholder="Enter password"></div>
+     <div id="pwErr" class="form-err hidden"></div>`,
+    [{label:"Cancel",cls:"btn-ghost",fn:closeModal},
+     {label:"Unlock",cls:"btn-signal",fn:()=>{ if($("pwInput").value===String(expected)){closeModal();onOk()} else showErr("pwErr","Incorrect password.") }}]);
+  setTimeout(()=>$("pwInput")&&$("pwInput").focus(),50);
+}
+
+/* ---------- TEAM ---------- */
+function renderTeam(){
+  const v=$("teamView");
+  if(canManageTeam()) renderTeamManager(v); else renderTeamSpecialist(v);
+}
+function statusClass(s){return {"Not Started":"on-ns","In Progress":"on-ip","Completed":"on-dn","Blocked":"on-bl"}[s]||"on-ns"}
+function prioBadge(p){const m={Low:"b-gray",Normal:"b-blue",High:"b-amber",Urgent:"b-red"};return `<span class="badge ${m[p]||'b-gray'}">${esc(p||'Normal')}</span>`}
+function statusBadge(s){const m={"Not Started":"b-gray","In Progress":"b-amber","Completed":"b-green","Blocked":"b-red"};return `<span class="badge ${m[s]||'b-gray'}">${esc(s)}</span>`}
+function sevBadge(s){const m={Low:"b-gray",Medium:"b-amber",High:"b-red"};return `<span class="badge ${m[s]||'b-gray'}">${esc(s)}</span>`}
+function mName(id){const m=TEAM.members.find(x=>x.id===id);return m?m.name:"Unassigned"}
+
+function renderTeamManager(v){
+  v.innerHTML=`
+    <div class="page-head"><div><div class="eyebrow">Team monitor</div><h2>Assignments &amp; issues</h2>
+      <p>See who's on what, track status, and clear blockers. Add people in Team members.</p></div>
+      <button class="btn btn-ghost btn-sm no-print" onclick="window.print()">Print daily report</button></div>
+    <div class="subnav">
+      ${[["dashboard","Dashboard"],["assignments","Assignments"],["issues","Issues"],["members","Team members"]]
+        .map(([k,l])=>`<button class="${k===teamTab?'active':''}" onclick="setTeamTab('${k}')">${l}</button>`).join("")}
+    </div>
+    <div id="teamBody"></div>`;
+  renderTeamBody();
+}
+function setTeamTab(t){teamTab=t;renderTeamBody()}
+function renderTeamBody(){
+  const el=$("teamBody"); const td=today();
+  if(teamTab==="dashboard"){
+    const tt=TEAM.assignments.filter(a=>a.date===td);
+    const open=tt.filter(a=>a.status!=="Completed").length, done=tt.filter(a=>a.status==="Completed").length;
+    const openIssues=TEAM.issues.filter(i=>i.status!=="Resolved").length;
+    const active=TEAM.members.filter(m=>m.status!=="Inactive").length;
+    el.innerHTML=`
+      <div class="statstrip">
+        <div class="statbox"><div class="sl">Team members</div><div class="sv">${active}</div></div>
+        <div class="statbox"><div class="sl">Open today</div><div class="sv">${open}</div></div>
+        <div class="statbox"><div class="sl">Completed today</div><div class="sv">${done}</div></div>
+        <div class="statbox"><div class="sl">Open issues</div><div class="sv" style="color:${openIssues?'var(--danger)':'inherit'}">${openIssues}</div></div>
+      </div>
+      <div class="card"><div class="card-head"><div><h3>Today's assignments</h3><p class="hint">${fmtDate(td)}</p></div>
+        <button class="btn btn-signal btn-sm no-print" onclick="openAssignModal()">+ Add assignment</button></div>
+        <div id="dashAssign"></div></div>
+      <div class="card"><div class="card-head"><div><h3>Open issues</h3><p class="hint">Blockers raised by the team</p></div>
+        <button class="btn btn-ghost btn-sm no-print" onclick="openIssueModal()">+ Log issue</button></div>
+        <div id="dashIssues"></div></div>`;
+    renderAssignList("dashAssign",tt);
+    renderIssueList("dashIssues",TEAM.issues.filter(i=>i.status!=="Resolved"));
+  }
+  else if(teamTab==="assignments"){
+    el.innerHTML=`<div class="card"><div class="card-head"><div><h3>All assignments</h3>
+      <p class="hint">Create tasks and assign them to team members.</p></div>
+      <button class="btn btn-signal btn-sm no-print" onclick="openAssignModal()">+ Add assignment</button></div>
+      <div id="allAssign"></div></div>`;
+    renderAssignList("allAssign",[...TEAM.assignments].sort((a,b)=>b.date.localeCompare(a.date)),true);
+  }
+  else if(teamTab==="issues"){
+    el.innerHTML=`<div class="card"><div class="card-head"><div><h3>Issues</h3>
+      <p class="hint">Equipment, materials, systems, discrepancies — anything blocking work.</p></div>
+      <button class="btn btn-signal btn-sm no-print" onclick="openIssueModal()">+ Log issue</button></div>
+      <div id="allIssues"></div></div>`;
+    renderIssueList("allIssues",[...TEAM.issues].sort((a,b)=>(b.ts||0)-(a.ts||0)),true);
+  }
+  else if(teamTab==="members"){
+    el.innerHTML=`<div class="card"><div class="card-head"><div><h3>Team members</h3>
+      <p class="hint">Everyone here appears on the specialist self-service screen.</p></div>
+      <button class="btn btn-signal btn-sm no-print" onclick="openMemberModal()">+ Add member</button></div>
+      <div id="memberList"></div></div>`;
+    renderMemberList();
   }
 }
-function logout(){
-  currentRole=null;pinBuf="";updDots();
-  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
-  document.getElementById("screen-login").classList.add("active");
-  document.getElementById("modePills").style.display="none";
-  document.getElementById("logoutBtn").style.display="none";
-  document.getElementById("pinError").textContent="";
-  selectRole("specialist");
+function renderAssignList(target,list,showDate){
+  const el=$(target); if(!el)return;
+  if(!list.length){el.innerHTML=`<div class="empty">No assignments${showDate?'':' today'}. Add one to get started.</div>`;return}
+  el.innerHTML=list.map(t=>`<div class="lrow"><div class="li">
+    <h4>${esc(t.title)}</h4>
+    <p>${esc(mName(t.memberId))}${t.area?' · '+esc(t.area):''}${showDate?' · '+fmtDate(t.date):''}</p>
+    <div class="chips">${prioBadge(t.priority)}${statusBadge(t.status)}${t.notes?`<span class="tag">📝 ${esc(t.notes.slice(0,40))}${t.notes.length>40?'…':''}</span>`:''}</div>
+    </div><div class="no-print" style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="openAssignModal('${t.id}')">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="delAssign('${t.id}')">✕</button>
+    </div></div>`).join("");
 }
-function switchRole(r){
-  if(r==="manager"&&currentRole!=="manager"){logout();selectRole("manager");return;}
-  currentRole=r;
-  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
-  document.getElementById("screen-"+r).classList.add("active");
-  document.querySelectorAll(".mode-pill").forEach(p=>p.classList.remove("active"));
-  document.querySelectorAll(".mode-pill")[r==="manager"?1:0].classList.add("active");
-  renderAll();
+function renderIssueList(target,list,showResolved){
+  const el=$(target); if(!el)return;
+  if(!list.length){el.innerHTML=`<div class="empty">No open issues. 🎉</div>`;return}
+  el.innerHTML=list.map(i=>`<div class="lrow"><div class="li">
+    <h4>${esc(i.title)}</h4>
+    <p>${i.memberId?esc(mName(i.memberId))+' · ':''}${i.area?esc(i.area)+' · ':''}${fmtDate((i.date||today()))}</p>
+    <div class="chips">${sevBadge(i.severity)}${statusBadge(i.status)}${i.notes?`<span class="tag">📝 ${esc(i.notes.slice(0,40))}${i.notes.length>40?'…':''}</span>`:''}</div>
+    </div><div class="no-print" style="display:flex;gap:6px;flex-wrap:wrap">
+      ${i.status!=="Resolved"?`<button class="btn btn-ghost btn-sm" onclick="resolveIssue('${i.id}')">Resolve</button>`:''}
+      <button class="btn btn-danger btn-sm" onclick="delIssue('${i.id}')">✕</button>
+    </div></div>`).join("");
 }
-
-// THEME
-let theme=localStorage.getItem("ic_theme")||"dark";
-function applyTheme(){document.documentElement.setAttribute("data-theme",theme);document.getElementById("themeBtn").textContent=theme==="dark"?"☀️":"🌙";}
-function toggleTheme(){theme=theme==="dark"?"light":"dark";localStorage.setItem("ic_theme",theme);applyTheme();}
-applyTheme();
-
-// STATE
-let S={members:[],tasks:[],labor:[],downtime:[],links:[]};
-const KEY="ic_hub_v3";
-function save(){localStorage.setItem(KEY,JSON.stringify(S));renderAll();}
-function load(){
-  try{const d=localStorage.getItem(KEY);if(d)S=JSON.parse(d);}catch(e){}
-  ["members","tasks","labor","downtime","links"].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[];});
-  S.tasks.forEach(t=>{if(!t.attachments)t.attachments=[];});
-}
-function uid(p){return p+"_"+Date.now()+"_"+Math.random().toString(36).slice(2,7);}
-const today=new Date().toISOString().slice(0,10);
-
-// HELPERS
-function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
-function mName(id){const m=S.members.find(x=>x.id===id);return m?m.name:"Unassigned";}
-function fmtDate(d){if(!d)return"";return new Date(d+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"});}
-function sBadge(st){const map={"Completed":"green","In Progress":"yellow","Blocked":"red","Not Started":"gray","Urgent":"red","High":"orange","Normal":"blue"};return `<span class="badge ${map[st]||"gray"}">${esc(st)}</span>`;}
-function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2800);}
-function fIcon(n){const e=(n||"").split(".").pop().toLowerCase();if(e==="pdf")return"📄";if(["xlsx","xls"].includes(e))return"📊";if(e==="csv")return"📋";return"📎";}
-function fmtB(b){if(b<1024)return b+"B";if(b<1048576)return(b/1024).toFixed(1)+"KB";return(b/1048576).toFixed(1)+"MB";}
-
-// MODALS
-function om(id){document.getElementById(id).classList.add("open");}
-function cm(id){document.getElementById(id).classList.remove("open");}
-window.addEventListener("click",e=>{document.querySelectorAll(".modal.open").forEach(m=>{if(e.target===m)m.classList.remove("open");});});
-
-// MGR TABS
-function mgrTab(id,btn){
-  document.querySelectorAll(".mgr-section").forEach(s=>s.classList.remove("active"));
-  document.querySelectorAll(".mgr-tab").forEach(t=>t.classList.remove("active"));
-  document.getElementById("mgr-"+id).classList.add("active");
-  if(btn)btn.classList.add("active");
-  renderAll();
+function renderMemberList(){
+  const el=$("memberList"); if(!el)return;
+  if(!TEAM.members.length){el.innerHTML=`<div class="empty">No team members yet. Add your team.</div>`;return}
+  el.innerHTML=TEAM.members.map(m=>`<div class="lrow"><div class="li">
+    <h4>${esc(m.name)}</h4><p>${esc(m.role||'IC Specialist')}${m.shift?' · '+esc(m.shift):''}</p>
+    <div class="chips"><span class="badge ${m.status==='Inactive'?'b-gray':'b-green'}">${esc(m.status||'Active')}</span></div>
+    </div><div style="display:flex;gap:6px">
+      <button class="btn btn-ghost btn-sm" onclick="openMemberModal('${m.id}')">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="delMember('${m.id}')">✕</button>
+    </div></div>`).join("");
 }
 
-// FILES
-let pFiles=[];
-function fdOver(e){e.preventDefault();document.getElementById("fileDrop").classList.add("dragover");}
-function fdLeave(){document.getElementById("fileDrop").classList.remove("dragover");}
-function fdDrop(e){e.preventDefault();document.getElementById("fileDrop").classList.remove("dragover");handleFiles(e.dataTransfer.files);}
-function fileSelected(e){handleFiles(e.target.files);e.target.value="";}
-function handleFiles(files){
-  Array.from(files).forEach(file=>{
-    const ext=file.name.split(".").pop().toLowerCase();
-    if(!["pdf","xlsx","xls","csv"].includes(ext)){toast("Only PDF, XLSX, XLS, CSV");return;}
-    if(file.size>10*1024*1024){toast(file.name+" too large (max 10MB)");return;}
-    const r=new FileReader();
-    r.onload=e2=>{pFiles.push({name:file.name,type:file.type,size:file.size,dataUrl:e2.target.result});renderFP();};
-    r.readAsDataURL(file);
+/* team modals */
+function memberOpts(sel){return TEAM.members.map(m=>`<option value="${m.id}" ${m.id===sel?'selected':''}>${esc(m.name)}</option>`).join("")}
+function openAssignModal(id){
+  const t=id?TEAM.assignments.find(x=>x.id===id):{title:"",memberId:"",priority:"Normal",status:"Not Started",area:"",notes:"",date:today()};
+  modal(id?"Edit assignment":"New assignment",
+    `<div class="field"><label>Assignment</label><input id="aTitle" value="${esc(t.title)}" placeholder="Cycle count aisle 12, shortage research…"></div>
+     <div class="g2">
+       <div class="field"><label>Assign to</label><select id="aMember"><option value="">Unassigned</option>${memberOpts(t.memberId)}</select></div>
+       <div class="field"><label>Priority</label><select id="aPrio">${["Low","Normal","High","Urgent"].map(p=>`<option ${p===t.priority?'selected':''}>${p}</option>`).join("")}</select></div>
+       <div class="field"><label>Status</label><select id="aStatus">${["Not Started","In Progress","Completed","Blocked"].map(s=>`<option ${s===t.status?'selected':''}>${s}</option>`).join("")}</select></div>
+       <div class="field"><label>Area / division</label><input id="aArea" value="${esc(t.area)}" placeholder="NH, VP, dock…"></div>
+     </div>
+     <div class="field"><label>Notes</label><textarea id="aNotes" placeholder="Detail, blockers, follow-up…">${esc(t.notes)}</textarea></div>`,
+    [{label:"Cancel",cls:"btn-ghost",fn:closeModal},
+     {label:id?"Save":"Add",cls:"btn-signal",fn:()=>{
+       const title=$("aTitle").value.trim(); if(!title)return toast("Give the assignment a name.");
+       const data={title,memberId:$("aMember").value,priority:$("aPrio").value,status:$("aStatus").value,area:$("aArea").value.trim(),notes:$("aNotes").value.trim()};
+       if(id){Object.assign(t,data)} else {TEAM.assignments.push({id:uid(),date:today(),...data})}
+       saveTeam();closeModal();renderTeamBody();toast(id?"Assignment saved":"Assignment added");
+     }}]);
+}
+function delAssign(id){TEAM.assignments=TEAM.assignments.filter(x=>x.id!==id);saveTeam();renderTeamBody();toast("Removed")}
+function openIssueModal(id){
+  const i=id?TEAM.issues.find(x=>x.id===id):{title:"",memberId:"",severity:"Medium",status:"Open",area:"",notes:"",date:today()};
+  modal(id?"Edit issue":"Log issue",
+    `<div class="field"><label>Issue</label><input id="iTitle" value="${esc(i.title)}" placeholder="Scanner down, waiting on material…"></div>
+     <div class="g2">
+       <div class="field"><label>Raised by</label><select id="iMember"><option value="">—</option>${memberOpts(i.memberId)}</select></div>
+       <div class="field"><label>Severity</label><select id="iSev">${["Low","Medium","High"].map(s=>`<option ${s===i.severity?'selected':''}>${s}</option>`).join("")}</select></div>
+       <div class="field"><label>Status</label><select id="iStatus">${["Open","In Progress","Resolved"].map(s=>`<option ${s===i.status?'selected':''}>${s}</option>`).join("")}</select></div>
+       <div class="field"><label>Area / division</label><input id="iArea" value="${esc(i.area)}" placeholder="NH, dock…"></div>
+     </div>
+     <div class="field"><label>Notes</label><textarea id="iNotes" placeholder="What's blocked and what's needed…">${esc(i.notes)}</textarea></div>`,
+    [{label:"Cancel",cls:"btn-ghost",fn:closeModal},
+     {label:id?"Save":"Log issue",cls:"btn-signal",fn:()=>{
+       const title=$("iTitle").value.trim(); if(!title)return toast("Describe the issue.");
+       const data={title,memberId:$("iMember").value,severity:$("iSev").value,status:$("iStatus").value,area:$("iArea").value.trim(),notes:$("iNotes").value.trim()};
+       if(id){Object.assign(i,data)} else {TEAM.issues.push({id:uid(),date:today(),ts:Date.now(),...data})}
+       saveTeam();closeModal();renderTeamBody();toast(id?"Issue saved":"Issue logged");
+     }}]);
+}
+function resolveIssue(id){const i=TEAM.issues.find(x=>x.id===id);if(i){i.status="Resolved";saveTeam();renderTeamBody();toast("Marked resolved")}}
+function delIssue(id){TEAM.issues=TEAM.issues.filter(x=>x.id!==id);saveTeam();renderTeamBody();toast("Removed")}
+function openMemberModal(id){
+  const m=id?TEAM.members.find(x=>x.id===id):{name:"",role:"IC Specialist",shift:"",status:"Active"};
+  modal(id?"Edit member":"Add member",
+    `<div class="field"><label>Name</label><input id="mName" value="${esc(m.name)}" placeholder="Full name"></div>
+     <div class="g2">
+       <div class="field"><label>Role</label><input id="mRole" value="${esc(m.role)}" placeholder="IC Specialist"></div>
+       <div class="field"><label>Shift</label><input id="mShift" value="${esc(m.shift)}" placeholder="1st, 2nd…"></div>
+     </div>
+     <div class="field"><label>Status</label><select id="mStatus">${["Active","Training","Inactive"].map(s=>`<option ${s===m.status?'selected':''}>${s}</option>`).join("")}</select></div>`,
+    [{label:"Cancel",cls:"btn-ghost",fn:closeModal},
+     {label:id?"Save":"Add",cls:"btn-signal",fn:()=>{
+       const name=$("mName").value.trim(); if(!name)return toast("Enter a name.");
+       const data={name,role:$("mRole").value.trim()||"IC Specialist",shift:$("mShift").value.trim(),status:$("mStatus").value};
+       if(id){Object.assign(m,data)} else {TEAM.members.push({id:uid(),...data})}
+       saveTeam();closeModal();renderTeamBody();toast(id?"Member saved":"Member added");
+     }}]);
+}
+function delMember(id){
+  if(TEAM.assignments.some(a=>a.memberId===id)){ if(!confirm("This member has assignments. Remove anyway?"))return; }
+  TEAM.members=TEAM.members.filter(x=>x.id!==id);saveTeam();renderTeamBody();toast("Removed");
+}
+
+/* specialist self-service */
+function renderTeamSpecialist(v){
+  const active=TEAM.members.filter(m=>m.status!=="Inactive");
+  if(selMember===null){
+    const match=active.find(m=>m.name.toLowerCase()===session.name.toLowerCase());
+    if(match) selMember=match.id;
+  }
+  v.innerHTML=`
+    <div class="page-head"><div><div class="eyebrow">My work</div><h2>Today's assignments</h2>
+      <p>${fmtDate(today())}</p></div>
+      ${selMember?`<button class="btn btn-ghost btn-sm" onclick="clearSelMember()">← Switch name</button>`:''}</div>
+    <div id="specBody"></div>`;
+  const b=$("specBody");
+  if(!active.length){b.innerHTML=`<div class="empty"><strong>No team members yet</strong>Your manager needs to add the team first.</div>`;return}
+  if(!selMember){
+    b.innerHTML=`<div class="card"><div class="card-head"><div><h3>Who are you?</h3><p class="hint">Pick your name to see your assignments.</p></div></div>
+      <div class="board">${active.map(m=>`<button class="tile" style="--tc:var(--r-icteam);cursor:pointer;text-align:left" onclick="setSelMember('${m.id}')">
+        <div class="spine"></div><h3>${esc(m.name)}</h3><p>${esc(m.role||'IC Specialist')}${m.shift?' · '+esc(m.shift):''}</p></button>`).join("")}</div></div>`;
+    return;
+  }
+  const my=TEAM.assignments.filter(a=>a.memberId===selMember&&a.date===today());
+  b.innerHTML=`
+    <div class="card"><div class="card-head"><div><h3>📋 ${esc(mName(selMember))} — today</h3><p class="hint">Tap a status to update it.</p></div></div>
+      <div id="myList"></div></div>
+    <div class="card"><div class="card-head"><div><h3>Raise an issue</h3><p class="hint">Blocked or waiting? Log it so your manager sees it.</p></div>
+      <button class="btn btn-signal btn-sm" onclick="specIssue()">+ Log issue</button></div>
+      <div id="myIssues"></div></div>`;
+  const ml=$("myList");
+  if(!my.length){ml.innerHTML=`<div class="empty">No assignments for today. Check back or contact your manager.</div>`}
+  else ml.innerHTML=my.map(t=>`<div class="lrow"><div class="li">
+    <h4>${esc(t.title)}</h4><p>${t.area?esc(t.area)+' · ':''}</p>
+    <div class="chips">${prioBadge(t.priority)}</div>
+    <div class="statusbtns">
+      ${["Not Started","In Progress","Completed","Blocked"].map(s=>`<button class="sbtn ${t.status===s?statusClass(s):''}" onclick="myStatus('${t.id}','${s}')">${s==="Completed"?"✓ Done":s}</button>`).join("")}
+    </div></div></div>`).join("");
+  const mi=TEAM.issues.filter(i=>i.memberId===selMember&&i.status!=="Resolved");
+  $("myIssues").innerHTML = mi.length ? mi.map(i=>`<div class="lrow"><div class="li"><h4>${esc(i.title)}</h4>
+    <div class="chips">${sevBadge(i.severity)}${statusBadge(i.status)}</div></div></div>`).join("") : `<div class="empty">No open issues from you.</div>`;
+}
+function setSelMember(id){selMember=id;renderTeam()}
+function clearSelMember(){selMember=null;renderTeam()}
+function myStatus(id,s){const t=TEAM.assignments.find(x=>x.id===id);if(t){t.status=s;saveTeam();renderTeam();toast("Updated to "+s)}}
+function specIssue(){
+  modal("Raise an issue",
+    `<div class="field"><label>Issue</label><input id="iTitle" placeholder="Scanner down, waiting on material…"></div>
+     <div class="g2"><div class="field"><label>Severity</label><select id="iSev"><option>Low</option><option selected>Medium</option><option>High</option></select></div>
+       <div class="field"><label>Area / division</label><input id="iArea" placeholder="NH, dock…"></div></div>
+     <div class="field"><label>Notes</label><textarea id="iNotes" placeholder="What's blocked and what's needed…"></textarea></div>`,
+    [{label:"Cancel",cls:"btn-ghost",fn:closeModal},
+     {label:"Log issue",cls:"btn-signal",fn:()=>{
+       const title=$("iTitle").value.trim(); if(!title)return toast("Describe the issue.");
+       TEAM.issues.push({id:uid(),date:today(),ts:Date.now(),title,memberId:selMember,severity:$("iSev").value,status:"Open",area:$("iArea").value.trim(),notes:$("iNotes").value.trim()});
+       saveTeam();closeModal();renderTeam();toast("Issue logged — manager notified on their board");
+     }}]);
+}
+
+/* ---------- reports ---------- */
+function renderReports(){
+  const cat=$("reportCatalog"); let html="";
+  CONFIG.apps.forEach(a=>{
+    if(!canOpen(a))return; const grp=CONFIG.reports[a.key]; if(!grp)return;
+    const on=grp.connected;
+    html+=`<div class="rgroup" style="--tc:${a.color}"><div class="rgroup-head"><span class="spine"></span>
+      <h3>${esc(a.name)}</h3><span class="badge ${on?'b-green':'b-amber'}">${on?'Connected':'Not connected'}</span></div>`;
+    grp.items.forEach(it=>{const dis=!on,cid=`chk_${a.key}_${it.id}`;
+      html+=`<label class="rrow ${dis?'disabled':''}" for="${cid}"><input type="checkbox" id="${cid}" ${dis?'disabled':''}
+        onchange="toggleSel('${a.key}','${it.id}',this.checked)">
+        <div><div class="rname">${esc(it.name)}</div><div class="rdesc">${esc(it.desc)}</div></div></label>`;});
+    html+=`</div>`;
   });
+  cat.innerHTML=html||`<div class="empty"><strong>No reports available</strong>The apps you can access have no reports listed.</div>`;
+  clearSel();
 }
-function renderFP(){
-  const el=document.getElementById("fpList");if(!el)return;
-  el.innerHTML=pFiles.map((f,i)=>`<div class="fp-item"><span>${fIcon(f.name)}</span><span>${esc(f.name)} <span style="color:var(--muted);font-size:11px;">(${fmtB(f.size)})</span></span><button class="rm" onclick="rmPF(${i})">x</button></div>`).join("");
-}
-function rmPF(i){pFiles.splice(i,1);renderFP();}
-
-function openFV(tid,fi){
-  const task=S.tasks.find(t=>t.id===tid);if(!task||!task.attachments[fi])return;
-  const f=task.attachments[fi];
-  document.getElementById("fvTitle").textContent=f.name;
-  const dl=document.getElementById("fvDownload");dl.href=f.dataUrl;dl.download=f.name;
-  const frame=document.getElementById("fvFrame");
-  const ext=f.name.split(".").pop().toLowerCase();
-  const note=document.getElementById("fvNote");
-  if(ext==="pdf"){frame.src=f.dataUrl;frame.style.display="block";note.textContent="";}
-  else{frame.style.display="none";note.textContent="Excel/CSV: click Download to open in Excel";}
-  om("fvModal");
-}
-
-function attachHTML(task,big){
-  if(!task.attachments||!task.attachments.length)return"";
-  if(big){return `<div class="attach-list">${task.attachments.map((f,i)=>`<a class="attach-pill" href="#" onclick="openFV('${task.id}',${i});return false;"><span>${fIcon(f.name)}</span><span class="attach-name">${esc(f.name)}</span><span class="attach-size">${fmtB(f.size)}</span></a>`).join("")}</div>`;}
-  return `<div class="tchips">${task.attachments.map((f,i)=>`<a class="tchip" href="#" onclick="openFV('${task.id}',${i});return false;">${fIcon(f.name)} ${esc(f.name)}</a>`).join("")}</div>`;
+const selKey=(a,i)=>a+"::"+i;
+function toggleSel(a,i,on){on?sel.add(selKey(a,i)):sel.delete(selKey(a,i));$("selCount").textContent=sel.size}
+function clearSel(){sel.clear();$("selCount").textContent=0;
+  document.querySelectorAll('#reportCatalog input[type=checkbox]').forEach(c=>c.checked=false);$("runLog").innerHTML=""}
+async function runSelected(){
+  if(!sel.size)return toast("Select at least one report.");
+  const log=$("runLog");log.innerHTML="";
+  for(const k of [...sel]){
+    const [app,id]=k.split("::"); const item=CONFIG.reports[app].items.find(i=>i.id===id);
+    const line=document.createElement("div");line.className="logitem";
+    line.innerHTML=`<span class="stchip st-run">Running</span><span>${esc(item.name)}</span>`;log.appendChild(line);
+    let res;try{res=await adapters[app].run(item)}catch(e){res={status:"error"}}
+    const chip=line.querySelector(".stchip");
+    if(res.status==="ok"){chip.className="stchip st-ok";chip.textContent="Opened"}
+    else if(res.status==="not_connected"){chip.className="stchip st-skip";chip.textContent="Not wired";
+      line.innerHTML+=`<span style="font-size:12px;color:var(--muted);margin-left:auto">upload app file</span>`}
+    else{chip.className="stchip st-err";chip.textContent="Error"}
+  }
+  toast("Run complete.");
 }
 
-// MEMBERS
-function openMemberModal(){["mName","mRole","mShift","mNotes"].forEach(id=>document.getElementById(id).value="");document.getElementById("mStatus").value="Active";om("memberModal");}
-function saveMember(){
-  const name=document.getElementById("mName").value.trim();if(!name){toast("Enter a name");return;}
-  S.members.push({id:uid("m"),name,role:document.getElementById("mRole").value.trim(),shift:document.getElementById("mShift").value.trim(),status:document.getElementById("mStatus").value,notes:document.getElementById("mNotes").value.trim()});
-  cm("memberModal");save();toast("Member added");
+/* ---------- admin (password-gated) ---------- */
+function renderAdmin(){
+  const v=$("adminView");
+  if(!adminUnlocked){
+    v.innerHTML=`<div class="gate"><div class="lockglyph">🔐</div><h3>Admin access</h3>
+      <p>Enter the admin password to manage apps, people, and security.</p>
+      <div id="admErr" class="form-err hidden"></div>
+      <div class="field"><input id="admPw" type="password" autocomplete="off" placeholder="Admin password" style="text-align:center"></div>
+      <button class="btn btn-signal" style="width:100%;justify-content:center" onclick="unlockAdmin()">Unlock</button></div>`;
+    setTimeout(()=>{const e=$("admPw");if(e){e.focus();e.onkeydown=ev=>{if(ev.key==="Enter")unlockAdmin()}}},50);
+    return;
+  }
+  v.innerHTML=`
+    <div class="page-head"><div><div class="eyebrow">Admin</div><h2>Manage the hub</h2>
+      <p>Set app links and gating, people and access, and security. Changes save to this browser; use Export to back up or move to a shared database.</p></div></div>
+    <div class="subnav">${[["links","Apps & gating"],["people","People & access"],["security","Security"],["export","Export / import"]]
+      .map(([k,l])=>`<button class="${k===adminTab?'active':''}" onclick="setAdminTab('${k}')">${l}</button>`).join("")}</div>
+    <div id="adminBody"></div>`;
+  renderAdminBody();
 }
-function delMember(id){if(!confirm("Remove member?"))return;S.members=S.members.filter(m=>m.id!==id);save();toast("Removed");}
-function renderMembers(){
-  const el=document.getElementById("memberList");if(!el)return;
-  if(!S.members.length){el.innerHTML='<div class="empty">No team members yet.</div>';return;}
-  el.innerHTML=S.members.map(m=>`<div class="member-row"><div class="mi"><h4>${esc(m.name)} ${sBadge(m.status)}</h4><span>${esc(m.role)}${m.shift?" &middot; "+esc(m.shift):""}</span>${m.notes?`<p style="font-size:13px;color:var(--muted);margin-top:3px;">${esc(m.notes)}</p>`:""}</div><button class="sm-btn danger no-print" onclick="delMember('${m.id}')">Remove</button></div>`).join("");
+function unlockAdmin(){
+  if($("admPw").value===String(CONFIG.adminPassword)){adminUnlocked=true;renderAdmin()}
+  else showErr("admErr","Incorrect admin password.");
 }
+function setAdminTab(t){adminTab=t;renderAdminBody()}
+function renderAdminBody(){
+  const el=$("adminBody");
+  if(adminTab==="links"){
+    el.innerHTML=`<div class="card"><h3>Applications</h3><p class="hint" style="margin-bottom:14px">
+      Toggle an app off to hide it from everyone (gating). Set a password to lock an app behind a prompt.</p>
+      <div class="table-wrap"><table><thead><tr><th>App</th><th>URL</th><th style="width:90px">Enabled</th><th style="width:140px">Password</th></tr></thead>
+      <tbody>${CONFIG.apps.map((a,i)=>`<tr>
+        <td><strong>${esc(a.name)}</strong><br><span class="mono" style="font-size:11px;color:var(--muted)">${esc(a.code)}</span></td>
+        <td><input value="${esc(a.url)}" onchange="CONFIG.apps[${i}].url=this.value.trim();saveConfig();toast('Saved')"></td>
+        <td><select onchange="CONFIG.apps[${i}].enabled=(this.value==='yes');saveConfig()">
+          <option value="yes" ${a.enabled?'selected':''}>On</option><option value="no" ${!a.enabled?'selected':''}>Off</option></select></td>
+        <td><input value="${esc(a.password)}" placeholder="none" onchange="CONFIG.apps[${i}].password=this.value;saveConfig();toast('Saved')"></td>
+      </tr>`).join("")}</tbody></table></div></div>`;
+  }
+  else if(adminTab==="people"){
+    const ro=r=>Object.entries(CONFIG.roles).map(([k,v])=>`<option value="${k}" ${k===r?'selected':''}>${v.label}</option>`).join("");
+    el.innerHTML=`<div class="card"><div class="card-head"><div><h3>People &amp; access</h3>
+      <p class="hint">Set each person's sign-in, role, and exactly which pages and apps they see in the hub.
+      Role decides the Team view (manager vs specialist) and the badge.</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Name</th><th style="width:100px">Hub PIN</th><th style="width:150px">Role</th><th style="width:150px">Access</th><th style="width:44px"></th></tr></thead>
+      <tbody>${CONFIG.people.map((p,i)=>`<tr>
+        <td><input value="${esc(p.name)}" onchange="CONFIG.people[${i}].name=this.value;saveConfig();renderLoginNames()"></td>
+        <td><input class="mono" value="${esc(String(p.pin))}" onchange="CONFIG.people[${i}].pin=this.value.trim();saveConfig()"></td>
+        <td><select onchange="CONFIG.people[${i}].role=this.value;saveConfig()">${ro(p.role)}</select></td>
+        <td><button class="btn btn-ghost btn-sm" onclick="openAccessModal(${i})">Pages &amp; apps</button></td>
+        <td><button class="btn btn-danger btn-sm" onclick="delPerson(${i})">✕</button></td></tr>`).join("")}</tbody></table></div>
+      <button class="btn btn-signal btn-sm" style="margin-top:14px" onclick="addPerson()">+ Add person</button></div>`;
+  }
+  else if(adminTab==="security"){
+    el.innerHTML=`<div class="card"><h3>Admin password</h3>
+      <p class="hint" style="margin-bottom:14px">Protects this Admin screen. Default is <span class="mono">1234</span> — change it here.</p>
+      <div class="g2" style="max-width:460px">
+        <div class="field"><label>New password</label><input id="npw" type="password" placeholder="New admin password"></div>
+        <div class="field"><label>Confirm</label><input id="npw2" type="password" placeholder="Re-enter"></div>
+      </div>
+      <button class="btn btn-signal btn-sm" onclick="changeAdminPw()">Update password</button>
+      <button class="btn btn-ghost btn-sm" onclick="resetAdminPw()">Reset to 1234</button>
+    </div>`;
+  }
+  else if(adminTab==="export"){
+    el.innerHTML=`<div class="card"><h3>Export / import</h3>
+      <p class="hint" style="margin-bottom:12px">Back up your setup or move it to another browser. (This is hub config — app links, people, gating. Team data is separate.)</p>
+      <textarea class="code" id="cfgBox">${esc(JSON.stringify(CONFIG,null,2))}</textarea>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-primary btn-sm" onclick="importCfg()">Load pasted config</button>
+        <button class="btn btn-ghost btn-sm" onclick="copyCfg()">Copy</button>
+        <button class="btn btn-ghost btn-sm" onclick="resetCfg()">Reset to defaults</button>
+      </div></div>`;
+  }
+}
+function openAccessModal(i){
+  const p=CONFIG.people[i];
+  const pages=effPages(p), apps=effApps(p);
+  const pageDefs=[["launch","Launch"],["team","Team"],["reports","Reports"],["admin","Admin (also needs the admin password)"]];
+  const cbx=(val,label,checked)=>`<label style="display:flex;align-items:center;gap:9px;font-weight:500;padding:2px 0">
+    <input type="checkbox" value="${val}" ${checked?'checked':''} style="width:17px;height:17px;accent-color:var(--signal);flex:none"> ${label}</label>`;
+  modal("Access · "+esc(p.name),
+    `<div class="field"><label>Hub pages this person sees</label>
+       <div id="accPages" style="display:grid;gap:4px">${pageDefs.map(([k,l])=>cbx(k,l,pages.includes(k))).join("")}</div></div>
+     <div class="field" style="margin-bottom:4px"><label>Applications they can open</label>
+       <div id="accApps" style="display:grid;gap:4px">${CONFIG.apps.map(a=>cbx(a.key,esc(a.name)+(a.enabled?'':' <span class="badge b-gray">off</span>'),apps.includes(a.key))).join("")}</div></div>`,
+    [{label:"Cancel",cls:"btn-ghost",fn:closeModal},
+     {label:"Save access",cls:"btn-signal",fn:()=>{
+       p.pages=[...document.querySelectorAll('#accPages input:checked')].map(c=>c.value);
+       p.apps=[...document.querySelectorAll('#accApps input:checked')].map(c=>c.value);
+       saveConfig();closeModal();renderAdminBody();toast("Access updated");
+     }}]);
+}
+function addPerson(){CONFIG.people.push({name:"New person",pin:"0000",role:"icteam",pages:["launch","team"],apps:[]});saveConfig();renderAdminBody();renderLoginNames()}
+function delPerson(i){if(CONFIG.people.length<=1)return toast("Keep at least one person.");
+  CONFIG.people.splice(i,1);saveConfig();renderAdminBody();renderLoginNames()}
+function changeAdminPw(){
+  const a=$("npw").value,b=$("npw2").value;
+  if(!a)return toast("Enter a new password.");
+  if(a!==b)return toast("Passwords don't match.");
+  CONFIG.adminPassword=a;saveConfig();toast("Admin password updated.");$("npw").value="";$("npw2").value="";
+}
+function resetAdminPw(){CONFIG.adminPassword="1234";saveConfig();toast("Reset to 1234.")}
+function importCfg(){try{CONFIG=JSON.parse($("cfgBox").value);saveConfig();renderLoginNames();renderAdmin();toast("Configuration loaded.")}catch(e){toast("That isn't valid JSON.")}}
+function copyCfg(){const t=$("cfgBox");t.select();try{navigator.clipboard.writeText(t.value);toast("Copied.")}catch(e){toast("Select and copy manually.")}}
+function resetCfg(){if(!confirm("Reset all hub config to defaults?"))return;CONFIG=structuredClone(DEFAULT_CONFIG);saveConfig();renderLoginNames();renderAdmin();toast("Reset to defaults.")}
 
-// TASKS
-function openTaskModal(){
-  ["tTitle","tArea","tNotes"].forEach(id=>document.getElementById(id).value="");
-  document.getElementById("tPriority").value="Normal";document.getElementById("tStatus").value="Not Started";
-  pFiles=[];renderFP();
-  popSel("tPerson",S.members,"id","name","Unassigned");
-  om("taskModal");
+/* ---------- modal + misc ---------- */
+function modal(title,body,buttons){
+  $("modalTitle").textContent=title; $("modalBody").innerHTML=body;
+  $("modalFoot").innerHTML="";
+  (buttons||[]).forEach(b=>{const btn=document.createElement("button");btn.className="btn "+b.cls+" btn-sm";btn.textContent=b.label;btn.onclick=b.fn;$("modalFoot").appendChild(btn)});
+  $("modal").classList.add("open");
 }
-function saveTask(){
-  const title=document.getElementById("tTitle").value.trim();if(!title){toast("Enter a task title");return;}
-  S.tasks.push({id:uid("t"),title,personId:document.getElementById("tPerson").value,area:document.getElementById("tArea").value.trim(),priority:document.getElementById("tPriority").value,status:document.getElementById("tStatus").value,notes:document.getElementById("tNotes").value.trim(),date:today,attachments:[...pFiles],updatedAt:new Date().toISOString()});
-  pFiles=[];cm("taskModal");save();toast("Assignment added");
-}
-function updTaskStatus(id,status){const t=S.tasks.find(x=>x.id===id);if(t){t.status=status;t.updatedAt=new Date().toISOString();}save();toast("Status: "+status);}
-function delTask(id){if(!confirm("Delete assignment?"))return;S.tasks=S.tasks.filter(t=>t.id!==id);save();toast("Removed");}
-function taskRowHTML(t,del){return `<div class="task-row"><div class="ti"><h4>${esc(t.title)}</h4><p>${esc(mName(t.personId))}${t.area?" &middot; "+esc(t.area):""}</p>${t.notes?`<p style="margin-top:3px;">${esc(t.notes)}</p>`:""}<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">${sBadge(t.status)} ${sBadge(t.priority)}</div>${attachHTML(t,false)}</div>${del?`<button class="sm-btn danger no-print" onclick="delTask('${t.id}')">Del</button>`:""}</div>`;}
-function renderTasks(){const el=document.getElementById("taskList");if(!el)return;if(!S.tasks.length){el.innerHTML='<div class="empty">No assignments yet.</div>';return;}el.innerHTML=S.tasks.map(t=>taskRowHTML(t,true)).join("");}
-function renderOverviewTasks(){const el=document.getElementById("overviewTaskList");if(!el)return;const tasks=S.tasks.filter(t=>t.date===today);if(!tasks.length){el.innerHTML='<div class="empty">No assignments for today.</div>';return;}el.innerHTML=tasks.map(t=>taskRowHTML(t,false)).join("");}
-
-// LABOR
-function saveLabor(){
-  const p=document.getElementById("laborPerson").value,task=document.getElementById("laborTask").value.trim(),hrs=parseFloat(document.getElementById("laborHrs").value);
-  if(!p||!task||isNaN(hrs)||hrs<=0){toast("Fill in person, assignment, and hours");return;}
-  S.labor.push({id:uid("l"),date:today,personId:p,task,hours:hrs,output:document.getElementById("laborOutput").value.trim(),notes:document.getElementById("laborNotes").value.trim()});
-  clearLaborForm();save();toast("Labor entry saved");
-}
-function clearLaborForm(){["laborTask","laborHrs","laborOutput","laborNotes"].forEach(id=>document.getElementById(id).value="");}
-function delLabor(id){if(!confirm("Delete?"))return;S.labor=S.labor.filter(l=>l.id!==id);save();}
-function renderLaborTable(){
-  const tb=document.getElementById("laborTableBody");if(!tb)return;
-  if(!S.labor.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px;">No labor entries yet.</td></tr>';return;}
-  tb.innerHTML=[...S.labor].reverse().map(l=>`<tr><td>${fmtDate(l.date)}</td><td>${esc(mName(l.personId))}</td><td>${esc(l.task)}</td><td><strong>${l.hours}</strong></td><td>${esc(l.output)}</td><td>${esc(l.notes)}</td><td class="no-print"><button class="sm-btn danger" onclick="delLabor('${l.id}')">Del</button></td></tr>`).join("");
-}
-
-// DOWNTIME
-let selWorker=null;
-function logDowntime(){
-  const reason=document.getElementById("dtReason").value,hours=parseFloat(document.getElementById("dtHours").value);
-  if(!reason){toast("Select a reason");return;}if(!hours||hours<=0){toast("Enter hours");return;}if(!selWorker){toast("Select your name first");return;}
-  S.downtime.push({id:uid("d"),date:today,personId:selWorker,reason,hours,notes:document.getElementById("dtNotes").value.trim()});
-  document.getElementById("dtReason").value="";document.getElementById("dtHours").value="";document.getElementById("dtNotes").value="";
-  save();toast("Downtime logged");
-}
-function delDT(id){if(!confirm("Delete?"))return;S.downtime=S.downtime.filter(d=>d.id!==id);save();}
-function renderDTTable(){
-  const tb=document.getElementById("downtimeTableBody");if(!tb)return;
-  if(!S.downtime.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;">No downtime logged.</td></tr>';return;}
-  tb.innerHTML=[...S.downtime].reverse().map(d=>`<tr class="dtr"><td>${fmtDate(d.date)}</td><td>${esc(mName(d.personId))}</td><td>${esc(d.reason)}</td><td><strong>${d.hours}</strong></td><td>${esc(d.notes)}</td><td class="no-print"><button class="sm-btn danger" onclick="delDT('${d.id}')">Del</button></td></tr>`).join("");
-}
-function renderOvDT(){
-  const el=document.getElementById("overviewDowntime");if(!el)return;
-  const e=S.downtime.filter(d=>d.date===today);
-  if(!e.length){el.innerHTML='<div class="empty">No downtime logged today.</div>';return;}
-  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Person</th><th>Reason</th><th>Hours</th><th>Notes</th></tr></thead><tbody>${e.map(d=>`<tr class="dtr"><td>${esc(mName(d.personId))}</td><td>${esc(d.reason)}</td><td><strong>${d.hours}</strong></td><td>${esc(d.notes)}</td></tr>`).join("")}</tbody></table></div>`;
-}
-
-// LINKS
-function saveLink(){
-  const name=document.getElementById("linkName").value.trim(),url=document.getElementById("linkUrl").value.trim();
-  if(!name||!url){toast("Enter name and URL");return;}
-  S.links.push({id:uid("lk"),name,url,icon:document.getElementById("linkIcon").value.trim()||"🔗"});
-  clearLinkForm();save();toast("Link saved");
-}
-function clearLinkForm(){["linkName","linkUrl","linkIcon"].forEach(id=>document.getElementById(id).value="");}
-function delLink(id){if(!confirm("Remove?"))return;S.links=S.links.filter(l=>l.id!==id);save();}
-function renderLinks(){
-  const el=document.getElementById("linkList");
-  if(el){if(!S.links.length){el.innerHTML='<div class="empty">No links yet.</div>';}else{el.innerHTML=S.links.map(l=>`<div class="member-row"><div class="mi"><h4>${esc(l.icon)} ${esc(l.name)}</h4><a href="${esc(l.url)}" target="_blank" rel="noopener" style="color:var(--accent);font-size:13px;">${esc(l.url)}</a></div><button class="sm-btn danger no-print" onclick="delLink('${l.id}')">Remove</button></div>`).join("");}}
-  const wp=document.getElementById("workerPortalLinks");
-  if(wp){if(!S.links.length){wp.innerHTML='<div class="empty" style="grid-column:span 2;border:none;padding:8px 0;">No links added yet.</div>';}else{wp.innerHTML=S.links.map(l=>`<a class="portal-tile" href="${esc(l.url)}" target="_blank" rel="noopener"><div class="portal-icon">${esc(l.icon)}</div><div>${esc(l.name)}</div></a>`).join("");}}
-}
-
-// STATS
-function renderStats(){
-  const tt=S.tasks.filter(t=>t.date===today);
-  const lh=S.labor.filter(l=>l.date===today).reduce((a,l)=>a+l.hours,0);
-  const dh=S.downtime.filter(d=>d.date===today).reduce((a,d)=>a+d.hours,0);
-  const s=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
-  s("stMembers",S.members.length);s("stOpen",tt.filter(t=>t.status!=="Completed").length);
-  s("stDone",tt.filter(t=>t.status==="Completed").length);
-  s("stLabor",lh%1===0?lh:lh.toFixed(1));s("stDown",dh%1===0?dh:dh.toFixed(1));
-  s("todayLabel",fmtDate(today));
-}
-
-// SPECIALIST
-function renderWorkerScreen(){
-  document.getElementById("workerDate").textContent=fmtDate(today);
-  const list=document.getElementById("workerSelectList");
-  const active=S.members.filter(m=>m.status==="Active"||m.status==="Training");
-  if(!active.length){list.innerHTML='<div class="empty" style="border:none;padding:8px 0;">No team members yet.</div>';return;}
-  list.innerHTML=active.map(m=>`<button class="worker-btn${selWorker===m.id?" selected":""}" onclick="selW('${m.id}')"><div><div>${esc(m.name)}</div><div class="rt">${esc(m.role)}${m.shift?" &middot; "+esc(m.shift):""}</div></div><div>${selWorker===m.id?"&#10003;":""}</div></button>`).join("");
-  if(selWorker){document.getElementById("whoCard").style.display="none";document.getElementById("myAssignmentsCard").style.display="block";renderMyA();}
-  else{document.getElementById("whoCard").style.display="block";document.getElementById("myAssignmentsCard").style.display="none";}
-}
-function selW(id){selWorker=id;renderWorkerScreen();}
-function clearWorkerSelection(){selWorker=null;renderWorkerScreen();}
-function renderMyA(){
-  const el=document.getElementById("myAssignmentsList");
-  const myT=S.tasks.filter(t=>t.personId===selWorker&&t.date===today);
-  if(!myT.length){el.innerHTML='<div class="empty" style="border:none;padding:12px 0;">No assignments for today. Check back or contact your manager.</div>';return;}
-  el.innerHTML=myT.map(t=>`<div class="assign-card">
-    <div class="assign-title">${esc(t.title)}</div>
-    <div class="assign-meta">${t.area?esc(t.area)+" &middot; ":""}${sBadge(t.priority)}</div>
-    ${t.notes?`<p style="font-size:13px;color:var(--muted);margin-bottom:10px;">${esc(t.notes)}</p>`:""}
-    <div class="assign-status-btns">
-      <button class="status-btn${t.status==="Not Started"?" cur":""}" data-s="Not Started" onclick="updTaskStatus('${t.id}','Not Started')">Not Started</button>
-      <button class="status-btn${t.status==="In Progress"?" cur":""}" data-s="In Progress" onclick="updTaskStatus('${t.id}','In Progress')">In Progress</button>
-      <button class="status-btn${t.status==="Completed"?" cur":""}" data-s="Completed" onclick="updTaskStatus('${t.id}','Completed')">&#10003; Done</button>
-      <button class="status-btn${t.status==="Blocked"?" cur":""}" data-s="Blocked" onclick="updTaskStatus('${t.id}','Blocked')">Blocked</button>
-    </div>
-    ${attachHTML(t,true)}</div>`).join("");
-}
-
-// REPORT
-function renderReport(){
-  const rd=document.getElementById("rptDate");if(rd)rd.textContent="Date: "+fmtDate(today);
-  const tt=S.tasks.filter(t=>t.date===today),lt=S.labor.filter(l=>l.date===today),dt=S.downtime.filter(d=>d.date===today);
-  const lh=lt.reduce((a,l)=>a+l.hours,0),dh=dt.reduce((a,d)=>a+d.hours,0);
-  const done=tt.filter(t=>t.status==="Completed").length,open=tt.filter(t=>t.status!=="Completed").length;
-  const rs=document.getElementById("rptStats");
-  if(rs)rs.innerHTML=`<div class="stat-box"><div class="sl">Total Assigned</div><div class="sv">${tt.length}</div></div><div class="stat-box"><div class="sl">Completed</div><div class="sv">${done}</div></div><div class="stat-box"><div class="sl">Open</div><div class="sv">${open}</div></div><div class="stat-box"><div class="sl">Labor Hours</div><div class="sv">${lh%1===0?lh:lh.toFixed(1)}</div></div><div class="stat-box"><div class="sl">Downtime Hours</div><div class="sv">${dh%1===0?dh:dh.toFixed(1)}</div></div>`;
-  const rt=document.getElementById("rptTasks");
-  if(rt){if(!tt.length){rt.innerHTML='<div class="empty">No assignments for today.</div>';}else{rt.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Assignment</th><th>Person</th><th>Area</th><th>Priority</th><th>Status</th><th>Files</th></tr></thead><tbody>${tt.map(t=>`<tr><td>${esc(t.title)}</td><td>${esc(mName(t.personId))}</td><td>${esc(t.area)}</td><td>${sBadge(t.priority)}</td><td>${sBadge(t.status)}</td><td>${(t.attachments||[]).map(f=>fIcon(f.name)+" "+esc(f.name)).join(", ")||"—"}</td></tr>`).join("")}</tbody></table></div>`;}}
-  const rlb=document.getElementById("rptLaborBody");
-  if(rlb){if(!lt.length){rlb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px;">No labor hours logged today.</td></tr>';}else{rlb.innerHTML=lt.map(l=>`<tr><td>${esc(mName(l.personId))}</td><td>${esc(l.task)}</td><td><strong>${l.hours}</strong></td><td>${esc(l.output)}</td><td>${esc(l.notes)}</td></tr>`).join("");}}
-  const rd2=document.getElementById("rptDowntime");
-  if(rd2){if(!dt.length){rd2.innerHTML='<div class="empty">No downtime reported today.</div>';}else{rd2.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Person</th><th>Reason</th><th>Hours</th><th>Notes</th></tr></thead><tbody>${dt.map(d=>`<tr class="dtr"><td>${esc(mName(d.personId))}</td><td>${esc(d.reason)}</td><td><strong>${d.hours}</strong></td><td>${esc(d.notes)}</td></tr>`).join("")}</tbody></table></div>`;}}
-}
-
-// SELECT HELPER
-function popSel(id,arr,vk,lk,empty){const el=document.getElementById(id);if(!el)return;el.innerHTML=(empty?`<option value="">${empty}</option>`:"")+arr.map(i=>`<option value="${esc(i[vk])}">${esc(i[lk])}</option>`).join("");}
-function popSelects(){popSel("laborPerson",S.members,"id","name","Select person...");}
-
-function renderAll(){
-  popSelects();renderStats();renderWorkerScreen();renderMembers();renderTasks();
-  renderOverviewTasks();renderOvDT();renderLaborTable();renderDTTable();renderLinks();renderReport();
-}
-
-load();
-document.getElementById("workerDate").textContent=fmtDate(today);
+function closeModal(){$("modal").classList.remove("open")}
+$("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
+function toggleTheme(){const d=document.documentElement;const n=d.dataset.theme==="dark"?"light":"dark";d.dataset.theme=n;store.set("ichub_theme",n)}
+let toastT; function toast(m){const el=$("toast");el.textContent=m;el.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove("show"),2600)}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&$("loginView").style.display!=="none")doLogin()});
+boot();
 </script>
 </body>
 </html>
