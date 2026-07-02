@@ -227,6 +227,24 @@
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   @media(prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
   @media(max-width:640px){.topbar .title,.topbar .clock{display:none}.navtab{padding:8px 10px}.wrap{padding:20px 14px 50px}}
+  /* assignment calendar */
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;overflow-x:auto}
+  @media(max-width:900px){.cal-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
+  .cal-col{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;min-width:150px}
+  .cal-col.cal-today{border-color:var(--signal);box-shadow:0 0 0 1px var(--signal) inset}
+  .cal-colhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid var(--line2)}
+  .cal-colday{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:13px}
+  .cal-colcount{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted)}
+  .cal-colbody{display:flex;flex-direction:column;gap:7px;min-height:40px;flex:1}
+  .cal-empty{font-size:11.5px;color:var(--muted);padding:8px 2px}
+  .cal-card{background:var(--surface2);border:1px solid var(--line2);border-left:3px solid var(--muted);
+    border-radius:8px;padding:8px 9px;cursor:pointer;transition:.12s}
+  .cal-card:hover{border-color:var(--line);box-shadow:var(--shadow)}
+  .cal-time{font-size:10.5px;color:var(--signal-d);font-weight:600;margin-bottom:2px}
+  .cal-title{font-size:12.5px;font-weight:600;line-height:1.3;margin-bottom:2px}
+  .cal-who{font-size:11px;color:var(--muted);margin-bottom:5px}
+  .cal-chips{display:flex;flex-wrap:wrap;gap:4px}
+  .cal-chips .badge{font-size:9px;padding:2px 6px}
   @media print{.topbar,.subnav,.no-print,.btn{display:none !important}body{background:#fff}.wrap{padding:0}}
 </style>
 </head>
@@ -522,6 +540,7 @@ const store={
 let CONFIG, TEAM, session=null, sel=new Set(), adminUnlocked=false, adminTab="links", teamTab="dashboard";
 let currentView="launch";
 let scheduleWeekStart=null;
+let calendarWeekStart=null;
 let db=null, CLOUD_OK=false, suppressPush=false;
 const $=id=>document.getElementById(id);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -539,7 +558,7 @@ function loadTeam(){
   const s=store.get("ichub_team");
   TEAM = s ? (()=>{try{return JSON.parse(s)}catch(e){return{}}})() : {};
   TEAM.members=TEAM.members||[]; TEAM.assignments=TEAM.assignments||[]; TEAM.issues=TEAM.issues||[];
-  TEAM.labor=TEAM.labor||[]; TEAM.schedule=TEAM.schedule||[];
+  TEAM.labor=TEAM.labor||[]; TEAM.schedule=TEAM.schedule||[]; TEAM.checkins=TEAM.checkins||[];
   if(!Array.isArray(TEAM.guides)) TEAM.guides=defaultGuides();
 }
 /* One-time cleanup: fold any legacy roster (TEAM.members) into the single
@@ -617,7 +636,7 @@ function subscribeCloud(){
     DIAG.teamRead=true; DIAG.lastUpdate=new Date().toLocaleTimeString();
     if(doc.exists&&doc.data().data){ suppressPush=true; TEAM=doc.data().data;
       TEAM.members=TEAM.members||[];TEAM.assignments=TEAM.assignments||[];TEAM.issues=TEAM.issues||[];
-      TEAM.labor=TEAM.labor||[];TEAM.schedule=TEAM.schedule||[];TEAM.guides=TEAM.guides||[];
+      TEAM.labor=TEAM.labor||[];TEAM.schedule=TEAM.schedule||[];TEAM.guides=TEAM.guides||[];TEAM.checkins=TEAM.checkins||[];
       store.set("ichub_team",JSON.stringify(TEAM)); suppressPush=false; afterCloud(); }
     else pushTeam();
   }, e=>{ DIAG.firestoreError=(e.code?e.code:"")+" — "+(e.message||String(e)); DIAG.lastUpdate=new Date().toLocaleTimeString();
@@ -778,13 +797,32 @@ function activeMembers(){return CONFIG.people.filter(p=>p.status!=="Inactive")}
 function fmtDur(ms){ if(!ms||ms<0)return""; const mins=Math.round(ms/60000); if(mins<60)return mins+"m"; const h=Math.floor(mins/60),m=mins%60; return h+"h"+(m?" "+m+"m":""); }
 function fmtClock(ts){ return ts?new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):""; }
 
+/* ---------- attendance / daily check-in ---------- */
+function expectedMembers(dateStr){
+  return activeMembers().filter(m=>{
+    const s=TEAM.schedule.find(x=>x.memberId===m.id&&x.date===dateStr);
+    return !(s&&(s.shift==="Off"||s.shift==="Vacation"));
+  });
+}
+function todayCheckin(memberId,dateStr){ return TEAM.checkins.find(c=>c.memberId===memberId&&c.date===(dateStr||today())); }
+function doCheckIn(memberId,dateStr,by){
+  const d=dateStr||today();
+  if(todayCheckin(memberId,d))return;
+  TEAM.checkins.push({id:uid(),memberId,date:d,time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),ts:Date.now(),by:by||"self"});
+  saveTeam();
+}
+function undoCheckIn(memberId,dateStr){
+  const d=dateStr||today();
+  TEAM.checkins=TEAM.checkins.filter(c=>!(c.memberId===memberId&&c.date===d));
+  saveTeam();
+}
+
 function renderTeamManager(v){
   v.innerHTML=`
     <div class="page-head"><div><div class="eyebrow">Team monitor</div><h2>Assignments &amp; issues</h2>
-      <p>See who's on what, track status, and clear blockers. Manage the roster in Admin → Team members.</p></div>
-      <button class="btn btn-ghost btn-sm no-print" onclick="window.print()">Print daily report</button></div>
+      <p>See who's on what, track status, and clear blockers. Manage the roster in Admin → Team members.</p></div></div>
     <div class="subnav">
-      ${[["dashboard","Dashboard"],["assignments","Assignments"],["issues","Issues"],["labor","Time & labor"],["kpi","KPI"]]
+      ${[["dashboard","Dashboard"],["calendar","Calendar"],["assignments","All assignments"],["issues","Issues"],["labor","Time & labor"],["kpi","KPI"]]
         .map(([k,l])=>`<button class="${k===teamTab?'active':''}" onclick="setTeamTab('${k}')">${l}</button>`).join("")}
     </div>
     <div id="teamBody"></div>`;
@@ -800,22 +838,31 @@ function renderTeamBody(){
     const active=activeMembers().length;
     const durs=tt.filter(a=>a.startedAt&&a.completedAt).map(a=>a.completedAt-a.startedAt);
     const avgDur=durs.length?fmtDur(durs.reduce((s,d)=>s+d,0)/durs.length):"—";
+    const expected=expectedMembers(td);
+    const checkedIn=expected.filter(m=>todayCheckin(m.id,td));
     el.innerHTML=`
       <div class="statstrip">
         <div class="statbox"><div class="sl">Team members</div><div class="sv">${active}</div></div>
+        <div class="statbox"><div class="sl">Checked in today</div><div class="sv" style="color:${checkedIn.length<expected.length?'var(--warn)':'var(--ok)'}">${checkedIn.length}/${expected.length}</div></div>
         <div class="statbox"><div class="sl">Open today</div><div class="sv">${open}</div></div>
         <div class="statbox"><div class="sl">Completed today</div><div class="sv">${done}</div></div>
         <div class="statbox"><div class="sl">Avg completion time</div><div class="sv">${avgDur}</div></div>
         <div class="statbox"><div class="sl">Open issues</div><div class="sv" style="color:${openIssues?'var(--danger)':'inherit'}">${openIssues}</div></div>
       </div>
+      <div class="card"><div class="card-head"><div><h3>Today's attendance</h3><p class="hint">${fmtDate(td)} · scheduled Off/Vacation are excluded automatically</p></div></div>
+        <div id="dashAttend"></div></div>
       <div class="card"><div class="card-head"><div><h3>Today's assignments</h3><p class="hint">${fmtDate(td)}</p></div>
         <button class="btn btn-signal btn-sm no-print" onclick="openAssignModal()">+ Add assignment</button></div>
         <div id="dashAssign"></div></div>
       <div class="card"><div class="card-head"><div><h3>Open issues</h3><p class="hint">Blockers raised by the team</p></div>
         <button class="btn btn-ghost btn-sm no-print" onclick="openIssueModal()">+ Log issue</button></div>
         <div id="dashIssues"></div></div>`;
+    renderAttendanceList("dashAttend",expected,td);
     renderAssignList("dashAssign",tt);
     renderIssueList("dashIssues",TEAM.issues.filter(i=>i.status!=="Resolved"));
+  }
+  else if(teamTab==="calendar"){
+    el.innerHTML=renderCalendarShell();
   }
   else if(teamTab==="assignments"){
     el.innerHTML=`<div class="card"><div class="card-head"><div><h3>All assignments</h3>
@@ -879,7 +926,7 @@ function renderAssignList(target,list,showDate){
     return `<div class="lrow"><div class="li">
     <h4>${t.scheduledTime?`<span class="mono" style="color:var(--signal);margin-right:6px">${esc(t.scheduledTime)}</span>`:''}${esc(t.title)}</h4>
     <p>${esc(mName(t.memberId))}${t.area?' · '+esc(t.area):''}${showDate?' · '+fmtDate(t.date):''}${timing?' · '+esc(timing):''}</p>
-    <div class="chips">${prioBadge(t.priority)}${statusBadge(t.status)}${app?`<span class="tag">🔗 ${esc(app.name)}</span>`:''}${t.notes?`<span class="tag">📝 ${esc(t.notes.slice(0,40))}${t.notes.length>40?'…':''}</span>`:''}</div>
+    <div class="chips">${prioBadge(t.priority)}${statusBadge(t.status)}${t.batchId?`<span class="tag">👥 ${batchSiblings(t.batchId).length}</span>`:''}${app?`<span class="tag">🔗 ${esc(app.name)}</span>`:''}${t.notes?`<span class="tag">📝 ${esc(t.notes.slice(0,40))}${t.notes.length>40?'…':''}</span>`:''}</div>
     ${attachChips(t.attachments)}
     </div><div class="no-print" style="display:flex;gap:6px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="openAssignModal('${t.id}')">Edit</button>
@@ -898,6 +945,22 @@ function renderIssueList(target,list,showResolved){
       <button class="btn btn-danger btn-sm" onclick="delIssue('${i.id}')">✕</button>
     </div></div>`).join("");
 }
+function renderAttendanceList(target,expected,dateStr){
+  const el=$(target); if(!el)return;
+  if(!expected.length){el.innerHTML=`<div class="empty">No one's expected today — everyone active is scheduled Off or Vacation.</div>`;return}
+  el.innerHTML=expected.map(m=>{
+    const c=todayCheckin(m.id,dateStr);
+    return `<div class="lrow"><div class="li">
+      <h4>${esc(m.name)}</h4>
+      <p>${c?`Checked in ${esc(c.time)}${c.by==="manager"?" · marked by manager":""}`:"Not checked in yet"}</p>
+    </div><div class="no-print" style="display:flex;gap:6px;flex-wrap:wrap">
+      ${c?`<span class="badge b-green">✓ Present</span><button class="btn btn-ghost btn-sm" onclick="mgrUndoCheckin('${m.id}','${dateStr}')">Undo</button>`
+         :`<span class="badge b-red">Not in</span><button class="btn btn-signal btn-sm" onclick="mgrCheckin('${m.id}','${dateStr}')">Mark present</button>`}
+    </div></div>`;
+  }).join("");
+}
+function mgrCheckin(mid,d){ doCheckIn(mid,d,"manager"); renderActive(); toast("Marked present"); }
+function mgrUndoCheckin(mid,d){ undoCheckIn(mid,d); renderActive(); toast("Undone"); }
 
 /* team modals */
 function memberOpts(sel){return activeMembers().map(m=>`<option value="${m.id}" ${m.id===sel?'selected':''}>${esc(m.name)}</option>`).join("")}
@@ -926,13 +989,31 @@ async function handleAttachPick(input){
     toast("Attached "+file.name); }
   catch(e){ toast("Upload failed: "+(e.message||"check cloud sync")); }
 }
-function openAssignModal(id){
-  const t=id?TEAM.assignments.find(x=>x.id===id):{title:"",memberId:"",priority:"Normal",status:"Not Started",area:"",notes:"",date:today(),scheduledTime:"",linkedApp:"",attachments:[]};
+function batchSiblings(batchId){ return batchId?TEAM.assignments.filter(a=>a.batchId===batchId):[]; }
+function toggleAllAssignees(btn){
+  const boxes=document.querySelectorAll('#aMemberMulti input[type=checkbox]');
+  const allChecked=[...boxes].length>0&&[...boxes].every(b=>b.checked);
+  boxes.forEach(b=>b.checked=!allChecked);
+  btn.textContent=allChecked?"Select all":"Clear all";
+}
+function openAssignModal(id,prefill){
+  const t=id?TEAM.assignments.find(x=>x.id===id):{title:"",memberId:(prefill&&prefill.memberId)||"",priority:"Normal",status:"Not Started",area:"",notes:"",date:(prefill&&prefill.date)||today(),scheduledTime:"",linkedApp:"",attachments:[],batchId:null};
   _stagedAttachments=(t.attachments||[]).slice();
+  const members=activeMembers();
+  const sibs=id&&t.batchId?batchSiblings(t.batchId):[];
+  const assigneeField=id
+    ? `<div class="field"><label>Assign to</label><select id="aMember"><option value="">Unassigned</option>${memberOpts(t.memberId)}</select>
+        ${sibs.length>1?`<div style="font-size:11.5px;color:var(--muted);margin-top:5px">Part of one task assigned to ${sibs.length} people (${esc(sibs.map(s=>mName(s.memberId)).join(", "))}). This only edits ${esc(mName(t.memberId))}'s copy.</div>`:''}</div>`
+    : `<div class="field"><label>Assign to <span style="text-transform:none;font-weight:400;color:var(--muted)">— pick one or more; each person gets their own trackable copy</span></label>
+        ${members.length?`<div style="text-align:right;margin-bottom:4px"><button type="button" class="btn btn-ghost btn-sm" onclick="toggleAllAssignees(this)">Select all</button></div>`:''}
+        <div id="aMemberMulti" style="display:grid;grid-template-columns:1fr 1fr;gap:3px;max-height:160px;overflow:auto;border:1px solid var(--line);border-radius:9px;padding:9px">
+          ${members.length?members.map(m=>`<label style="display:flex;align-items:center;gap:7px;font-size:13px;padding:3px 0;cursor:pointer">
+            <input type="checkbox" value="${m.id}" ${prefill&&prefill.memberId===m.id?'checked':''} style="width:16px;height:16px;accent-color:var(--signal)"> ${esc(m.name)}</label>`).join(""):'<span style="color:var(--muted);font-size:12.5px">No active team members — add some in Admin.</span>'}
+        </div></div>`;
   modal(id?"Edit assignment":"New assignment",
     `<div class="field"><label>Assignment</label><input id="aTitle" value="${esc(t.title)}" placeholder="Cycle count aisle 12, shortage research…"></div>
      <div class="g2">
-       <div class="field"><label>Assign to</label><select id="aMember"><option value="">Unassigned</option>${memberOpts(t.memberId)}</select></div>
+       ${assigneeField}
        <div class="field"><label>Date</label><input id="aDate" type="date" value="${esc(t.date||today())}"></div>
        <div class="field"><label>Time</label><input id="aTime" type="time" value="${esc(t.scheduledTime||'')}"></div>
        <div class="field"><label>Priority</label><select id="aPrio">${["Low","Normal","High","Urgent"].map(p=>`<option ${p===t.priority?'selected':''}>${p}</option>`).join("")}</select></div>
@@ -951,15 +1032,39 @@ function openAssignModal(id){
      {label:id?"Save":"Add",cls:"btn-signal",fn:()=>{
        const title=$("aTitle").value.trim(); if(!title)return toast("Give the assignment a name.");
        const newStatus=$("aStatus").value;
-       const data={title,memberId:$("aMember").value,date:$("aDate").value||today(),scheduledTime:$("aTime").value,
+       const shared={title,date:$("aDate").value||today(),scheduledTime:$("aTime").value,
          priority:$("aPrio").value,area:$("aArea").value.trim(),linkedApp:$("aApp").value,notes:$("aNotes").value.trim(),
          attachments:_stagedAttachments.slice()};
-       if(id){ setAssignStatus(t,newStatus); Object.assign(t,data); }
-       else{ const rec={id:uid(),status:"Not Started",...data}; setAssignStatus(rec,newStatus); TEAM.assignments.push(rec); }
-       saveTeam();closeModal();renderActive();toast(id?"Assignment saved":"Assignment added");
+       if(id){
+         setAssignStatus(t,newStatus); Object.assign(t,shared,{memberId:$("aMember").value});
+         saveTeam();closeModal();renderActive();toast("Assignment saved");
+       }else{
+         const ids=$("aMemberMulti")?[...document.querySelectorAll('#aMemberMulti input:checked')].map(c=>c.value):[];
+         if(!ids.length){
+           const rec={id:uid(),status:"Not Started",memberId:"",batchId:null,...shared};
+           setAssignStatus(rec,newStatus); TEAM.assignments.push(rec);
+         }else{
+           const batchId=ids.length>1?uid():null;
+           ids.forEach(mid=>{ const rec={id:uid(),status:"Not Started",memberId:mid,batchId,...shared}; setAssignStatus(rec,newStatus); TEAM.assignments.push(rec); });
+         }
+         saveTeam();closeModal();renderActive();
+         toast(ids.length>1?("Assigned to "+ids.length+" people"):"Assignment added");
+       }
      }}]);
 }
-function delAssign(id){TEAM.assignments=TEAM.assignments.filter(x=>x.id!==id);saveTeam();renderActive();toast("Removed")}
+function delAssign(id){
+  const t=TEAM.assignments.find(x=>x.id===id); if(!t)return;
+  const sibs=t.batchId?batchSiblings(t.batchId):[];
+  if(sibs.length>1){
+    modal("Delete assignment",
+      `<p style="font-size:13.5px;color:var(--ink2)">This task is assigned to ${sibs.length} people. Remove just ${esc(mName(t.memberId))}'s copy, or all ${sibs.length} copies?</p>`,
+      [{label:"Cancel",cls:"btn-ghost",fn:closeModal},
+       {label:"Just this person",cls:"btn-ghost",fn:()=>{ TEAM.assignments=TEAM.assignments.filter(x=>x.id!==id); saveTeam();closeModal();renderActive();toast("Removed"); }},
+       {label:"All "+sibs.length+" copies",cls:"btn-danger",fn:()=>{ TEAM.assignments=TEAM.assignments.filter(x=>x.batchId!==t.batchId); saveTeam();closeModal();renderActive();toast("Removed for everyone"); }}]);
+    return;
+  }
+  TEAM.assignments=TEAM.assignments.filter(x=>x.id!==id);saveTeam();renderActive();toast("Removed");
+}
 function openIssueModal(id){
   const i=id?TEAM.issues.find(x=>x.id===id):{title:"",memberId:"",severity:"Medium",status:"Open",area:"",notes:"",date:today()};
   modal(id?"Edit issue":"Log issue",
@@ -993,7 +1098,16 @@ function renderTeamSpecialist(v){
   if(!me||me.status==="Inactive"){b.innerHTML=`<div class="empty"><strong>Ask your manager to add or reactivate you</strong>Your login isn't matched to an active team member yet.</div>`;return}
   const my=TEAM.assignments.filter(a=>a.memberId===me.id&&a.date===today())
     .sort((a,b2)=>String(a.scheduledTime||"99:99").localeCompare(String(b2.scheduledTime||"99:99")));
+  const myCheckin=todayCheckin(me.id);
   b.innerHTML=`
+    <div class="card" style="border-left:4px solid ${myCheckin?'var(--ok)':'var(--signal)'}">
+      <div class="card-head"><div>
+        <h3>${myCheckin?"✅ You're checked in":"👋 Check in for today"}</h3>
+        <p class="hint">${myCheckin?"Checked in at "+esc(myCheckin.time)+" — lets your manager know you're on site.":"One tap so your manager knows you're here today."}</p>
+      </div>
+      ${myCheckin?`<button class="btn btn-ghost btn-sm" onclick="specUndoCheckin('${me.id}')">Not me / undo</button>`
+        :`<button class="btn btn-signal btn-sm" onclick="specCheckin('${me.id}')">✅ Check in</button>`}
+      </div></div>
     <div class="card"><div class="card-head"><div><h3>📋 Today's schedule</h3><p class="hint">Tap Start when you begin, Done when you finish. Only your manager can add assignments.</p></div></div>
       <div id="myList"></div></div>
     <div class="card"><div class="card-head"><div><h3>⏱ Log my time</h3><p class="hint">Record what you worked on so it shows on the labor report.</p></div>
@@ -1030,6 +1144,8 @@ function setAssignStatus(t,s){
   t.status=s;
 }
 function myStatus(id,s){const t=TEAM.assignments.find(x=>x.id===id);if(t){setAssignStatus(t,s);saveTeam();renderActive();toast("Updated to "+s)}}
+function specCheckin(mid){ doCheckIn(mid,today(),"self"); renderActive(); toast("Checked in — have a good shift"); }
+function specUndoCheckin(mid){ undoCheckIn(mid,today()); renderActive(); toast("Check-in removed"); }
 function specIssue(){
   modal("Raise an issue",
     `<div class="field"><label>Issue</label><input id="iTitle" placeholder="Scanner down, waiting on material…"></div>
@@ -1119,6 +1235,77 @@ function renderSchedulePage(){
 }
 function schedWeek(n){scheduleWeekStart=addDays(scheduleWeekStart||mondayOf(today()),n);renderSchedulePage()}
 function schedThisWeek(){scheduleWeekStart=mondayOf(today());renderSchedulePage()}
+
+/* ---------- assignment calendar (weekly, printable) ---------- */
+function calWeek(n){calendarWeekStart=addDays(calendarWeekStart||mondayOf(today()),n);$("teamBody").innerHTML=renderCalendarShell();}
+function calThisWeek(){calendarWeekStart=mondayOf(today());$("teamBody").innerHTML=renderCalendarShell();}
+function calDayLabel(d){return new Date(d+"T00:00:00").toLocaleDateString([], {weekday:'long',month:'short',day:'numeric'});}
+function calDayShort(d){return new Date(d+"T00:00:00").toLocaleDateString([], {weekday:'short',month:'numeric',day:'numeric'});}
+function renderCalendarShell(){
+  if(!calendarWeekStart)calendarWeekStart=mondayOf(today());
+  const days=[0,1,2,3,4,5,6].map(i=>addDays(calendarWeekStart,i));
+  const weekEnd=days[6];
+  const byDay={}; days.forEach(d=>byDay[d]=[]);
+  TEAM.assignments.forEach(a=>{ if(byDay[a.date]) byDay[a.date].push(a); });
+  Object.values(byDay).forEach(list=>list.sort((a,b)=>String(a.scheduledTime||"99:99").localeCompare(String(b.scheduledTime||"99:99"))));
+  const isToday=d=>d===today();
+  const card=(a)=>{
+    const app=a.linkedApp?CONFIG.apps.find(x=>x.key===a.linkedApp):null;
+    const prioColor={Low:"var(--muted)",Normal:"var(--info)",High:"var(--warn)",Urgent:"var(--danger)"}[a.priority]||"var(--muted)";
+    return `<div class="cal-card" style="border-left-color:${prioColor}" onclick="openAssignModal('${a.id}')">
+      ${a.scheduledTime?`<div class="cal-time mono">${esc(a.scheduledTime)}</div>`:''}
+      <div class="cal-title">${esc(a.title)}</div>
+      <div class="cal-who">${esc(mName(a.memberId))}${a.area?' · '+esc(a.area):''}</div>
+      <div class="cal-chips">${statusBadge(a.status)}${a.batchId?`<span class="tag" style="font-size:10px">👥 ${batchSiblings(a.batchId).length}</span>`:''}${app?`<span class="tag" style="font-size:10px">🔗 ${esc(app.name)}</span>`:''}${(a.attachments&&a.attachments.length)?`<span class="tag" style="font-size:10px">📎 ${a.attachments.length}</span>`:''}</div>
+    </div>`;
+  };
+  const col=(d)=>`<div class="cal-col ${isToday(d)?'cal-today':''}">
+    <div class="cal-colhead"><div class="cal-colday">${esc(calDayShort(d))}</div><div class="cal-colcount">${byDay[d].length}</div></div>
+    <div class="cal-colbody">
+      ${byDay[d].length?byDay[d].map(card).join(""):`<div class="cal-empty">No assignments</div>`}
+    </div>
+    <button class="btn btn-ghost btn-sm no-print" style="width:100%;margin-top:6px" onclick="openAssignModal(null,{date:'${d}'})">+ Add</button>
+  </div>`;
+  return `
+    <div class="page-head"><div><div class="eyebrow">Week of ${esc(calDayLabel(calendarWeekStart))}</div><h2>Assignment calendar</h2>
+      <p>Click any task to edit. Click + Add to drop a new assignment on that day.</p></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-ghost btn-sm no-print" onclick="calWeek(-7)">← Prev week</button>
+        <button class="btn btn-ghost btn-sm no-print" onclick="calThisWeek()">This week</button>
+        <button class="btn btn-ghost btn-sm no-print" onclick="calWeek(7)">Next week →</button>
+        <button class="btn btn-signal btn-sm no-print" onclick="printCalendarWeek('${calendarWeekStart}','${weekEnd}')">Print week</button>
+      </div></div>
+    <div class="cal-grid">${days.map(col).join("")}</div>`;
+}
+function printCalendarWeek(startD,endD){
+  const days=[0,1,2,3,4,5,6].map(i=>addDays(startD,i));
+  const rows=[];
+  days.forEach(d=>{
+    const list=TEAM.assignments.filter(a=>a.date===d)
+      .sort((a,b)=>String(a.scheduledTime||"99:99").localeCompare(String(b.scheduledTime||"99:99")));
+    if(!list.length){ rows.push(`<tr><td><b>${esc(calDayLabel(d))}</b></td><td colspan="6" style="color:#9ca3af">No assignments</td></tr>`); return; }
+    list.forEach((a,i)=>{
+      const app=a.linkedApp?CONFIG.apps.find(x=>x.key===a.linkedApp):null;
+      rows.push(`<tr>${i===0?`<td rowspan="${list.length}"><b>${esc(calDayLabel(d))}</b></td>`:''}
+        <td>${esc(a.scheduledTime||'—')}</td><td>${esc(mName(a.memberId))}</td><td>${esc(a.title)}</td>
+        <td>${esc(a.area||'')}</td><td>${esc(a.priority)}</td><td>${esc(a.status)}${app?' · '+esc(app.name):''}</td></tr>`);
+    });
+  });
+  const w=window.open("","_blank"); if(!w)return toast("Allow pop-ups to print.");
+  const now=new Date().toLocaleString();
+  w.document.write(`<html><head><title>Weekly Assignments — ${esc(calDayLabel(startD))} to ${esc(calDayLabel(endD))}</title>
+    <style>${reportPrintCSS("#12202E")}
+      table{font-size:8.5pt} td{vertical-align:top} td b{white-space:nowrap}</style></head><body>
+    <div class="lh"><div><div class="lh-org">${esc(CONFIG.org)}</div>
+      <div class="lh-title">Weekly Assignment Schedule</div>
+      <div class="lh-sub">${esc(calDayLabel(startD))} — ${esc(calDayLabel(endD))}</div></div>
+      <div class="lh-gen">Generated: ${now}<br>Prepared by: ${esc(session.name)}</div></div>
+    <table><thead><tr><th>Day</th><th>Time</th><th>Member</th><th>Assignment</th><th>Area</th><th>Priority</th><th>Status / Link</th></tr></thead>
+    <tbody>${rows.join("")}</tbody></table>
+    <div class="lh-foot">${esc(CONFIG.org)} · ${now}</div>
+    </body></html>`);
+  w.document.close(); w.focus(); setTimeout(()=>w.print(),350);
+}
 function openScheduleCell(mid,date){
   if(!canManageTeam())return;
   const e=schedEntry(mid,date)||{shift:"",area:"",notes:""}, has=!!(e.shift||e.area||e.notes);
