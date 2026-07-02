@@ -996,6 +996,13 @@ function toggleAllAssignees(btn){
   boxes.forEach(b=>b.checked=!allChecked);
   btn.textContent=allChecked?"Select all":"Clear all";
 }
+function toggleRepeatMode(radio){
+  const multi=radio.value==="multi";
+  $("aSingleDateWrap").classList.toggle("hidden",multi);
+  $("aMultiDateWrap").classList.toggle("hidden",!multi);
+}
+const WEEKDAY_LABELS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+function weekdayIndexMonFirst(dstr){ return (new Date(dstr+"T00:00:00").getDay()+6)%7; } // 0=Mon..6=Sun
 function openAssignModal(id,prefill){
   const t=id?TEAM.assignments.find(x=>x.id===id):{title:"",memberId:(prefill&&prefill.memberId)||"",priority:"Normal",status:"Not Started",area:"",notes:"",date:(prefill&&prefill.date)||today(),scheduledTime:"",linkedApp:"",attachments:[],batchId:null};
   _stagedAttachments=(t.attachments||[]).slice();
@@ -1003,18 +1010,37 @@ function openAssignModal(id,prefill){
   const sibs=id&&t.batchId?batchSiblings(t.batchId):[];
   const assigneeField=id
     ? `<div class="field"><label>Assign to</label><select id="aMember"><option value="">Unassigned</option>${memberOpts(t.memberId)}</select>
-        ${sibs.length>1?`<div style="font-size:11.5px;color:var(--muted);margin-top:5px">Part of one task assigned to ${sibs.length} people (${esc(sibs.map(s=>mName(s.memberId)).join(", "))}). This only edits ${esc(mName(t.memberId))}'s copy.</div>`:''}</div>`
+        ${sibs.length>1?`<div style="font-size:11.5px;color:var(--muted);margin-top:5px">Part of one task that appears ${sibs.length} times (across people and/or days). This only edits this one instance — ${esc(mName(t.memberId))} on ${esc(fmtDate(t.date))}.</div>`:''}</div>`
     : `<div class="field"><label>Assign to <span style="text-transform:none;font-weight:400;color:var(--muted)">— pick one or more; each person gets their own trackable copy</span></label>
         ${members.length?`<div style="text-align:right;margin-bottom:4px"><button type="button" class="btn btn-ghost btn-sm" onclick="toggleAllAssignees(this)">Select all</button></div>`:''}
         <div id="aMemberMulti" style="display:grid;grid-template-columns:1fr 1fr;gap:3px;max-height:160px;overflow:auto;border:1px solid var(--line);border-radius:9px;padding:9px">
           ${members.length?members.map(m=>`<label style="display:flex;align-items:center;gap:7px;font-size:13px;padding:3px 0;cursor:pointer">
             <input type="checkbox" value="${m.id}" ${prefill&&prefill.memberId===m.id?'checked':''} style="width:16px;height:16px;accent-color:var(--signal)"> ${esc(m.name)}</label>`).join(""):'<span style="color:var(--muted);font-size:12.5px">No active team members — add some in Admin.</span>'}
         </div></div>`;
+  const whenField=id
+    ? `<div class="field"><label>Date</label><input id="aDate" type="date" value="${esc(t.date||today())}"></div>`
+    : `<div class="field"><label>When <span style="text-transform:none;font-weight:400;color:var(--muted)">— give it out for one day or a whole stretch at once</span></label>
+        <div style="display:flex;gap:16px;margin-bottom:9px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;cursor:pointer"><input type="radio" name="aRepeatMode" value="single" checked onchange="toggleRepeatMode(this)"> Single day</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;cursor:pointer"><input type="radio" name="aRepeatMode" value="multi" onchange="toggleRepeatMode(this)"> Multiple days</label>
+        </div>
+        <div id="aSingleDateWrap"><input id="aDate" type="date" value="${esc(t.date||today())}"></div>
+        <div id="aMultiDateWrap" class="hidden">
+          <div class="g2" style="margin-bottom:9px">
+            <div class="field" style="margin:0"><label>From</label><input id="aDateFrom" type="date" value="${esc(t.date||today())}"></div>
+            <div class="field" style="margin:0"><label>To</label><input id="aDateTo" type="date" value="${esc(addDays(t.date||today(),6))}"></div>
+          </div>
+          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em;font-weight:600">Repeat on</label>
+          <div style="display:flex;gap:5px;flex-wrap:wrap">
+            ${WEEKDAY_LABELS.map((d,i)=>`<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid var(--line);border-radius:7px;padding:6px 10px;cursor:pointer">
+              <input type="checkbox" id="aWd${i}" ${i<5?'checked':''} style="width:14px;height:14px;accent-color:var(--signal)"> ${d}</label>`).join("")}
+          </div>
+        </div></div>`;
   modal(id?"Edit assignment":"New assignment",
     `<div class="field"><label>Assignment</label><input id="aTitle" value="${esc(t.title)}" placeholder="Cycle count aisle 12, shortage research…"></div>
+     ${assigneeField}
+     ${whenField}
      <div class="g2">
-       ${assigneeField}
-       <div class="field"><label>Date</label><input id="aDate" type="date" value="${esc(t.date||today())}"></div>
        <div class="field"><label>Time</label><input id="aTime" type="time" value="${esc(t.scheduledTime||'')}"></div>
        <div class="field"><label>Priority</label><select id="aPrio">${["Low","Normal","High","Urgent"].map(p=>`<option ${p===t.priority?'selected':''}>${p}</option>`).join("")}</select></div>
        <div class="field"><label>Status</label><select id="aStatus">${["Not Started","In Progress","Completed","Blocked"].map(s=>`<option ${s===t.status?'selected':''}>${s}</option>`).join("")}</select></div>
@@ -1032,35 +1058,50 @@ function openAssignModal(id,prefill){
      {label:id?"Save":"Add",cls:"btn-signal",fn:()=>{
        const title=$("aTitle").value.trim(); if(!title)return toast("Give the assignment a name.");
        const newStatus=$("aStatus").value;
-       const shared={title,date:$("aDate").value||today(),scheduledTime:$("aTime").value,
-         priority:$("aPrio").value,area:$("aArea").value.trim(),linkedApp:$("aApp").value,notes:$("aNotes").value.trim(),
-         attachments:_stagedAttachments.slice()};
+       const sharedBase={title,scheduledTime:$("aTime").value,priority:$("aPrio").value,area:$("aArea").value.trim(),
+         linkedApp:$("aApp").value,notes:$("aNotes").value.trim(),attachments:_stagedAttachments.slice()};
        if(id){
-         setAssignStatus(t,newStatus); Object.assign(t,shared,{memberId:$("aMember").value});
+         setAssignStatus(t,newStatus); Object.assign(t,sharedBase,{date:$("aDate").value||today(),memberId:$("aMember").value});
          saveTeam();closeModal();renderActive();toast("Assignment saved");
-       }else{
-         const ids=$("aMemberMulti")?[...document.querySelectorAll('#aMemberMulti input:checked')].map(c=>c.value):[];
-         if(!ids.length){
-           const rec={id:uid(),status:"Not Started",memberId:"",batchId:null,...shared};
-           setAssignStatus(rec,newStatus); TEAM.assignments.push(rec);
-         }else{
-           const batchId=ids.length>1?uid():null;
-           ids.forEach(mid=>{ const rec={id:uid(),status:"Not Started",memberId:mid,batchId,...shared}; setAssignStatus(rec,newStatus); TEAM.assignments.push(rec); });
-         }
-         saveTeam();closeModal();renderActive();
-         toast(ids.length>1?("Assigned to "+ids.length+" people"):"Assignment added");
+         return;
        }
+       // Work out which date(s)
+       const mode=(document.querySelector('input[name="aRepeatMode"]:checked')||{value:"single"}).value;
+       let dates=[];
+       if(mode==="single"){ dates=[$("aDate").value||today()]; }
+       else{
+         const from=$("aDateFrom").value||today(), to=$("aDateTo").value||from;
+         if(to<from)return toast("The 'To' date is before the 'From' date.");
+         const wdChecked=[0,1,2,3,4,5,6].filter(i=>$("aWd"+i).checked);
+         if(!wdChecked.length)return toast("Pick at least one day of the week to repeat on.");
+         let cur=from, guard=0;
+         while(cur<=to&&guard<400){ if(wdChecked.includes(weekdayIndexMonFirst(cur)))dates.push(cur); cur=addDays(cur,1); guard++; }
+         if(!dates.length)return toast("That date range doesn't include any of the checked days.");
+       }
+       // Work out which member(s) — "" means unassigned
+       const ids=$("aMemberMulti")?[...document.querySelectorAll('#aMemberMulti input:checked')].map(c=>c.value):[];
+       const memberIds=ids.length?ids:[""];
+       const total=dates.length*memberIds.length;
+       const batchId=total>1?uid():null;
+       dates.forEach(d=>{ memberIds.forEach(mid=>{
+         const rec={id:uid(),status:"Not Started",memberId:mid,batchId,date:d,...sharedBase};
+         setAssignStatus(rec,newStatus); TEAM.assignments.push(rec);
+       }); });
+       saveTeam();closeModal();renderActive();
+       toast(total>1?("Created "+total+" assignments across "+dates.length+" day"+(dates.length>1?"s":"")+
+         (memberIds.length>1?" for "+memberIds.length+" people":"")):"Assignment added");
      }}]);
 }
 function delAssign(id){
   const t=TEAM.assignments.find(x=>x.id===id); if(!t)return;
   const sibs=t.batchId?batchSiblings(t.batchId):[];
   if(sibs.length>1){
+    const people=new Set(sibs.map(s=>s.memberId)).size, days=new Set(sibs.map(s=>s.date)).size;
     modal("Delete assignment",
-      `<p style="font-size:13.5px;color:var(--ink2)">This task is assigned to ${sibs.length} people. Remove just ${esc(mName(t.memberId))}'s copy, or all ${sibs.length} copies?</p>`,
+      `<p style="font-size:13.5px;color:var(--ink2)">This task appears ${sibs.length} times (${people>1?people+' people':'1 person'}${days>1?' × '+days+' days':''}). Remove just this one instance, or all ${sibs.length}?</p>`,
       [{label:"Cancel",cls:"btn-ghost",fn:closeModal},
-       {label:"Just this person",cls:"btn-ghost",fn:()=>{ TEAM.assignments=TEAM.assignments.filter(x=>x.id!==id); saveTeam();closeModal();renderActive();toast("Removed"); }},
-       {label:"All "+sibs.length+" copies",cls:"btn-danger",fn:()=>{ TEAM.assignments=TEAM.assignments.filter(x=>x.batchId!==t.batchId); saveTeam();closeModal();renderActive();toast("Removed for everyone"); }}]);
+       {label:"Just this one",cls:"btn-ghost",fn:()=>{ TEAM.assignments=TEAM.assignments.filter(x=>x.id!==id); saveTeam();closeModal();renderActive();toast("Removed"); }},
+       {label:"All "+sibs.length,cls:"btn-danger",fn:()=>{ TEAM.assignments=TEAM.assignments.filter(x=>x.batchId!==t.batchId); saveTeam();closeModal();renderActive();toast("Removed everywhere"); }}]);
     return;
   }
   TEAM.assignments=TEAM.assignments.filter(x=>x.id!==id);saveTeam();renderActive();toast("Removed");
