@@ -245,6 +245,14 @@
   .cal-who{font-size:11px;color:var(--muted);margin-bottom:5px}
   .cal-chips{display:flex;flex-wrap:wrap;gap:4px}
   .cal-chips .badge{font-size:9px;padding:2px 6px}
+  .cal-mgroup{margin-bottom:12px}
+  .cal-mhead{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+  .cal-avatar{width:19px;height:19px;border-radius:50%;color:#fff;font-size:9px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;flex:none;font-family:"IBM Plex Sans Condensed",sans-serif}
+  .cal-mname{font-size:11.5px;font-weight:700;color:var(--ink)}
+  .cal-mcards{display:flex;flex-direction:column;gap:6px;padding-left:8px;border-left:2px solid var(--line)}
+  .cal-card.cal-status-on-dn{opacity:.6}
+  .cal-card.cal-status-on-dn .cal-title{text-decoration:line-through}
   @media print{.topbar,.subnav,.no-print,.btn{display:none !important}body{background:#fff}.wrap{padding:0}}
 </style>
 </head>
@@ -544,7 +552,12 @@ let calendarWeekStart=null;
 let db=null, CLOUD_OK=false, suppressPush=false;
 const $=id=>document.getElementById(id);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const today=()=>new Date().toISOString().slice(0,10);
+// LOCAL date string (not UTC) — .toISOString() shifts by timezone offset and can land
+// on the wrong calendar day depending on time of day, which broke date matching
+// between saved assignments and the calendar grid. Every "what day is this" helper
+// in the hub must go through this, never toISOString().
+function localDateStr(d){ const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
+const today=()=>localDateStr(new Date());
 function fmtDate(d){const x=new Date(d+"T00:00:00");return x.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric'})}
 
 function loadConfig(){
@@ -794,6 +807,9 @@ function statusBadge(s){const m={"Not Started":"b-gray","In Progress":"b-amber",
 function sevBadge(s){const m={Low:"b-gray",Medium:"b-amber",High:"b-red"};return `<span class="badge ${m[s]||'b-gray'}">${esc(s)}</span>`}
 function mName(id){const m=CONFIG.people.find(x=>x.id===id);return m?m.name:"Unassigned"}
 function activeMembers(){return CONFIG.people.filter(p=>p.status!=="Inactive")}
+const MEMBER_PALETTE=["#3B49A8","#0E7C86","#B57A0E","#6B4BB6","#12968E","#C6564A","#2A79C6","#8A6D3B","#4B8B3B","#A83B6E"];
+function memberColor(id){ if(!id)return"#8C97A3"; let h=0; for(let i=0;i<id.length;i++)h=(h*31+id.charCodeAt(i))>>>0; return MEMBER_PALETTE[h%MEMBER_PALETTE.length]; }
+function initials(name){ if(!name)return"?"; const parts=name.trim().split(/\s+/); return ((parts[0]?.[0]||"")+(parts[1]?.[0]||"")).toUpperCase()||"?"; }
 function fmtDur(ms){ if(!ms||ms<0)return""; const mins=Math.round(ms/60000); if(mins<60)return mins+"m"; const h=Math.floor(mins/60),m=mins%60; return h+"h"+(m?" "+m+"m":""); }
 function fmtClock(ts){ return ts?new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):""; }
 
@@ -865,11 +881,7 @@ function renderTeamBody(){
     el.innerHTML=renderCalendarShell();
   }
   else if(teamTab==="assignments"){
-    el.innerHTML=`<div class="card"><div class="card-head"><div><h3>All assignments</h3>
-      <p class="hint">Create tasks and assign them to team members.</p></div>
-      <button class="btn btn-signal btn-sm no-print" onclick="openAssignModal()">+ Add assignment</button></div>
-      <div id="allAssign"></div></div>`;
-    renderAssignList("allAssign",[...TEAM.assignments].sort((a,b)=>b.date.localeCompare(a.date)),true);
+    el.innerHTML=renderAssignmentsByDay();
   }
   else if(teamTab==="issues"){
     el.innerHTML=`<div class="card"><div class="card-head"><div><h3>Issues</h3>
@@ -932,6 +944,59 @@ function renderAssignList(target,list,showDate){
       <button class="btn btn-ghost btn-sm" onclick="openAssignModal('${t.id}')">Edit</button>
       <button class="btn btn-danger btn-sm" onclick="delAssign('${t.id}')">✕</button>
     </div></div>`;}).join("");
+}
+let assignAgendaFilter="upcoming";
+function setAssignAgendaFilter(f){assignAgendaFilter=f;$("teamBody").innerHTML=renderAssignmentsByDay();}
+function renderAssignmentsByDay(){
+  const td=today();
+  let list=[...TEAM.assignments];
+  if(assignAgendaFilter==="upcoming") list=list.filter(a=>a.date>=td);
+  else if(assignAgendaFilter==="past") list=list.filter(a=>a.date<td);
+  const byDate={};
+  list.forEach(a=>{ (byDate[a.date]=byDate[a.date]||[]).push(a); });
+  const dates=Object.keys(byDate).sort((a,b)=>assignAgendaFilter==="past"?b.localeCompare(a):a.localeCompare(b));
+  const groupCard=(date,items)=>{
+    const byMember={};
+    items.forEach(a=>{ const k=a.memberId||""; (byMember[k]=byMember[k]||[]).push(a); });
+    const memberIds=Object.keys(byMember).sort((x,y)=>mName(x).localeCompare(mName(y)));
+    const isT=date===td;
+    return `<div class="card" style="${isT?'border-left:4px solid var(--signal)':''}">
+      <div class="card-head"><div><h3>${esc(calDayLabel(date))}${isT?' <span class="badge b-amber" style="margin-left:6px">Today</span>':''}</h3>
+        <p class="hint">${items.length} assignment${items.length===1?'':'s'}</p></div></div>
+      ${memberIds.map(mid=>{
+        const c=memberColor(mid); const rows=byMember[mid].sort((a,b)=>String(a.scheduledTime||"99:99").localeCompare(String(b.scheduledTime||"99:99")));
+        return `<div style="margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+            <span style="width:20px;height:20px;border-radius:50%;background:${c};color:#fff;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none">${esc(initials(mName(mid)))}</span>
+            <span style="font-weight:600;font-size:13px">${esc(mName(mid))}</span>
+            <span style="font-size:11.5px;color:var(--muted)">${rows.length} task${rows.length===1?'':'s'}</span>
+          </div>
+          ${rows.map(t=>{
+            const app=t.linkedApp?CONFIG.apps.find(x=>x.key===t.linkedApp):null;
+            return `<div class="lrow" style="padding-left:28px;border-left:2px solid ${c};margin-left:9px"><div class="li">
+              <h4>${t.scheduledTime?`<span class="mono" style="color:var(--signal);margin-right:6px">${esc(t.scheduledTime)}</span>`:''}${esc(t.title)}</h4>
+              <p>${t.area?esc(t.area)+' · ':''}${statusBadge(t.status)}</p>
+              <div class="chips">${prioBadge(t.priority)}${t.batchId?`<span class="tag">👥 ${batchSiblings(t.batchId).length}</span>`:''}${app?`<span class="tag">🔗 ${esc(app.name)}</span>`:''}</div>
+              ${attachChips(t.attachments)}
+              </div><div class="no-print" style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn btn-ghost btn-sm" onclick="openAssignModal('${t.id}')">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="delAssign('${t.id}')">✕</button>
+              </div></div>`;
+          }).join("")}
+        </div>`;
+      }).join("")}
+    </div>`;
+  };
+  return `
+    <div class="page-head"><div><div class="eyebrow">By day</div><h2>All assignments</h2>
+      <p>Every task, grouped by day then by person.</p></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="subnav" style="border:none;padding:0;margin:0">
+          ${[["upcoming","Upcoming"],["past","Past"],["all","All"]].map(([k,l])=>`<button class="${k===assignAgendaFilter?'active':''}" onclick="setAssignAgendaFilter('${k}')">${l}</button>`).join("")}
+        </div>
+        <button class="btn btn-signal btn-sm no-print" onclick="openAssignModal()">+ Add assignment</button>
+      </div></div>
+    ${dates.length?dates.map(d=>groupCard(d,byDate[d])).join(""):`<div class="empty"><strong>Nothing here</strong>Try a different filter or add an assignment.</div>`}`;
 }
 function renderIssueList(target,list,showResolved){
   const el=$(target); if(!el)return;
@@ -1250,8 +1315,8 @@ function delLabor(id){TEAM.labor=TEAM.labor.filter(x=>x.id!==id);saveTeam();rend
 
 /* ---------- schedule ---------- */
 const SHIFTS=["Off","1st","2nd","3rd","AM","PM","Vacation"];
-function mondayOf(dstr){const d=new Date(dstr+"T00:00:00");const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return d.toISOString().slice(0,10)}
-function addDays(dstr,n){const d=new Date(dstr+"T00:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)}
+function mondayOf(dstr){const d=new Date(dstr+"T00:00:00");const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return localDateStr(d)}
+function addDays(dstr,n){const d=new Date(dstr+"T00:00:00");d.setDate(d.getDate()+n);return localDateStr(d)}
 function schedEntry(mid,date){return TEAM.schedule.find(s=>s.memberId===mid&&s.date===date)}
 function renderSchedulePage(){
   if(!scheduleWeekStart)scheduleWeekStart=mondayOf(today());
@@ -1288,28 +1353,40 @@ function renderCalendarShell(){
   const weekEnd=days[6];
   const byDay={}; days.forEach(d=>byDay[d]=[]);
   TEAM.assignments.forEach(a=>{ if(byDay[a.date]) byDay[a.date].push(a); });
-  Object.values(byDay).forEach(list=>list.sort((a,b)=>String(a.scheduledTime||"99:99").localeCompare(String(b.scheduledTime||"99:99"))));
   const isToday=d=>d===today();
   const card=(a)=>{
     const app=a.linkedApp?CONFIG.apps.find(x=>x.key===a.linkedApp):null;
     const prioColor={Low:"var(--muted)",Normal:"var(--info)",High:"var(--warn)",Urgent:"var(--danger)"}[a.priority]||"var(--muted)";
-    return `<div class="cal-card" style="border-left-color:${prioColor}" onclick="openAssignModal('${a.id}')">
+    return `<div class="cal-card cal-status-${statusClass(a.status)}" style="border-left-color:${prioColor}" onclick="openAssignModal('${a.id}')">
       ${a.scheduledTime?`<div class="cal-time mono">${esc(a.scheduledTime)}</div>`:''}
       <div class="cal-title">${esc(a.title)}</div>
-      <div class="cal-who">${esc(mName(a.memberId))}${a.area?' · '+esc(a.area):''}</div>
+      ${a.area?`<div class="cal-who">${esc(a.area)}</div>`:''}
       <div class="cal-chips">${statusBadge(a.status)}${a.batchId?`<span class="tag" style="font-size:10px">👥 ${batchSiblings(a.batchId).length}</span>`:''}${app?`<span class="tag" style="font-size:10px">🔗 ${esc(app.name)}</span>`:''}${(a.attachments&&a.attachments.length)?`<span class="tag" style="font-size:10px">📎 ${a.attachments.length}</span>`:''}</div>
     </div>`;
   };
-  const col=(d)=>`<div class="cal-col ${isToday(d)?'cal-today':''}">
-    <div class="cal-colhead"><div class="cal-colday">${esc(calDayShort(d))}</div><div class="cal-colcount">${byDay[d].length}</div></div>
+  const col=(d)=>{
+    const dayItems=byDay[d];
+    const byMember={}; dayItems.forEach(a=>{ const k=a.memberId||""; (byMember[k]=byMember[k]||[]).push(a); });
+    const memberIds=Object.keys(byMember).sort((x,y)=>mName(x).localeCompare(mName(y)));
+    memberIds.forEach(mid=>byMember[mid].sort((a,b)=>String(a.scheduledTime||"99:99").localeCompare(String(b.scheduledTime||"99:99"))));
+    return `<div class="cal-col ${isToday(d)?'cal-today':''}">
+    <div class="cal-colhead"><div class="cal-colday">${esc(calDayShort(d))}</div><div class="cal-colcount">${dayItems.length}</div></div>
     <div class="cal-colbody">
-      ${byDay[d].length?byDay[d].map(card).join(""):`<div class="cal-empty">No assignments</div>`}
+      ${memberIds.length?memberIds.map(mid=>{
+        const c=memberColor(mid);
+        return `<div class="cal-mgroup">
+          <div class="cal-mhead"><span class="cal-avatar" style="background:${c}">${esc(initials(mName(mid)))}</span>
+            <span class="cal-mname">${esc(mName(mid))}</span></div>
+          <div class="cal-mcards" style="border-left-color:${c}">${byMember[mid].map(card).join("")}</div>
+        </div>`;
+      }).join(""):`<div class="cal-empty">No assignments</div>`}
     </div>
     <button class="btn btn-ghost btn-sm no-print" style="width:100%;margin-top:6px" onclick="openAssignModal(null,{date:'${d}'})">+ Add</button>
   </div>`;
+  };
   return `
     <div class="page-head"><div><div class="eyebrow">Week of ${esc(calDayLabel(calendarWeekStart))}</div><h2>Assignment calendar</h2>
-      <p>Click any task to edit. Click + Add to drop a new assignment on that day.</p></div>
+      <p>Grouped by person, then time. Click any task to edit.</p></div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn btn-ghost btn-sm no-print" onclick="calWeek(-7)">← Prev week</button>
         <button class="btn btn-ghost btn-sm no-print" onclick="calThisWeek()">This week</button>
@@ -1323,7 +1400,7 @@ function printCalendarWeek(startD,endD){
   const rows=[];
   days.forEach(d=>{
     const list=TEAM.assignments.filter(a=>a.date===d)
-      .sort((a,b)=>String(a.scheduledTime||"99:99").localeCompare(String(b.scheduledTime||"99:99")));
+      .sort((a,b)=>mName(a.memberId).localeCompare(mName(b.memberId))||String(a.scheduledTime||"99:99").localeCompare(String(b.scheduledTime||"99:99")));
     if(!list.length){ rows.push(`<tr><td><b>${esc(calDayLabel(d))}</b></td><td colspan="6" style="color:#9ca3af">No assignments</td></tr>`); return; }
     list.forEach((a,i)=>{
       const app=a.linkedApp?CONFIG.apps.find(x=>x.key===a.linkedApp):null;
