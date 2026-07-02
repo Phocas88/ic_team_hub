@@ -327,6 +327,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 
 <script>
 /* ════════════════ CONFIG — drives the whole hub. Edit here or in Admin. ════════════════ */
@@ -399,6 +400,7 @@ const FIREBASE_CONFIG = {
    still control access (the hub signs in anonymously to each where possible). */
 const REPORT_SOURCES={
   shortage:{ name:"Shortage & Over Pull", color:"#E4952B",
+    theme:{accent:"#1a2038",org:"C & F Enterprises · 815 Chapman Warehouse",prep:"815 Inventory Control",foot:"815 Inventory Control · C & F Enterprises · Chapman Warehouse"},
     config:{apiKey:"AIzaSyAbLkTbc0bpzqF5NyTLUi97kP1OnN_EyVw",authDomain:"new-picker-report-database.firebaseapp.com",projectId:"new-picker-report-database",storageBucket:"new-picker-report-database.firebasestorage.app",messagingSenderId:"579793542671",appId:"1:579793542671:web:4d2a75af117b35a6de0d7a"},
     reports:{
       short_summary:{name:"Outbound Shortage Report",desc:"Executive summary + division/shift breakdown + detail.",collection:"shortages_active",dateField:"date",both:"shortages_archive",build:"shortageSummary"},
@@ -410,6 +412,7 @@ const REPORT_SOURCES={
         columns:[["date","Date"],["division","Div"],["productCode","Product"],["qty","Qty"],["picker","Picker"],["packer","Packer"],["packStation","Station"],["orderNumber","Order #"]]}
     }},
   ic:{ name:"IC Portal", color:"#2A79C6",
+    theme:{accent:"#1a2038",org:"C & F Enterprises · 815 Chapman Warehouse",prep:"815 Inventory Control",foot:"815 Inventory Control Portal · C & F Enterprises · Chapman Warehouse"},
     config:{apiKey:"AIzaSyA1n5P6MFUojFsEBqlXaSLumNiChgAH1Lw",authDomain:"inventory-control-portal.firebaseapp.com",projectId:"inventory-control-portal",storageBucket:"inventory-control-portal.firebasestorage.app",messagingSenderId:"925547075268",appId:"1:925547075268:web:e6ebce91417aa6885a1b91"},
     reports:{
       ic_open:{name:"Open Inquiries",desc:"Tickets not completed or closed.",collection:"tickets",
@@ -419,12 +422,14 @@ const REPORT_SOURCES={
         columns:[["createdAt","Opened"],["division","Div"],["category","Category"],["productCode","Product"],["qty","Qty"],["priority","Priority"],["status","Status"]]}
     }},
   demand:{ name:"Demand Bin Verification", color:"#12968E",
+    theme:{accent:"#1d4ed8",org:"815 Chapman Warehouse · Demand Bin Verification",prep:"Inventory Control",foot:"Demand Bin Verification · Chapman Warehouse"},
     config:{apiKey:"AIzaSyAaP36f_ubgINso1pzVNAfcud_Zr4aBj3I",authDomain:"demand-bin-verification.firebaseapp.com",projectId:"demand-bin-verification",storageBucket:"demand-bin-verification.firebasestorage.app",messagingSenderId:"1052154132814",appId:"1:1052154132814:web:107a7c3e4c5903b7ae861f"},
     reports:{
       bin_count:{name:"Bin Count Report",desc:"Verified bins by division and window.",collection:"bundles",dateField:"date",
         columns:[["date","Date"],["division","Div"],["window","Window"],["bin","Bin"],["count","Count"],["status","Status"],["user","User"]]}
     }},
   returns:{ name:"Chapman Returns", color:"#6B4BB6",
+    theme:{accent:"#6d28d9",org:"IC Scanner · Chapman Warehouse",prep:"IC / RTP",foot:"IC Scanner — Chapman Warehouse"},
     config:{apiKey:"AIzaSyAg3wkAP60G92XLztIdrkaTttJgaBrb4wg",authDomain:"chapman-returns.firebaseapp.com",projectId:"chapman-returns",storageBucket:"chapman-returns.firebasestorage.app",messagingSenderId:"167708208865",appId:"1:167708208865:web:62e909798fc8ed482911a0"},
     reports:{
       ret_log:{name:"Returns Log",desc:"Processed returns.",collection:"rtp_returns",dateField:"date",
@@ -514,7 +519,7 @@ const store={
 };
 
 /* state */
-let CONFIG, TEAM, session=null, sel=new Set(), adminUnlocked=false, adminTab="links", teamTab="dashboard", selMember=null;
+let CONFIG, TEAM, session=null, sel=new Set(), adminUnlocked=false, adminTab="links", teamTab="dashboard";
 let currentView="launch";
 let scheduleWeekStart=null;
 let db=null, CLOUD_OK=false, suppressPush=false;
@@ -527,6 +532,7 @@ function loadConfig(){
   const s=store.get("ichub_config");
   CONFIG = s ? (()=>{try{return JSON.parse(s)}catch(e){return structuredClone(DEFAULT_CONFIG)}})() : structuredClone(DEFAULT_CONFIG);
   ["reportRoles","adminRoles","teamManagerRoles","adminPassword"].forEach(k=>{ if(CONFIG[k]===undefined) CONFIG[k]=DEFAULT_CONFIG[k]; });
+  CONFIG.people.forEach(p=>{ if(!p.id)p.id=uid(); if(!p.status)p.status="Active"; if(p.shift===undefined)p.shift=""; });
 }
 function saveConfig(){store.set("ichub_config",JSON.stringify(CONFIG));pushConfig()}
 function loadTeam(){
@@ -535,6 +541,26 @@ function loadTeam(){
   TEAM.members=TEAM.members||[]; TEAM.assignments=TEAM.assignments||[]; TEAM.issues=TEAM.issues||[];
   TEAM.labor=TEAM.labor||[]; TEAM.schedule=TEAM.schedule||[];
   if(!Array.isArray(TEAM.guides)) TEAM.guides=defaultGuides();
+}
+/* One-time cleanup: fold any legacy roster (TEAM.members) into the single
+   Admin → Team members list (CONFIG.people), matching by name so existing
+   assignments/schedule/labor keep pointing at the right person. */
+function mergeLegacyMembers(){
+  if(!TEAM.members||!TEAM.members.length) return;
+  const byName={}; CONFIG.people.forEach(p=>byName[p.name.toLowerCase()]=p);
+  const idMap={};
+  TEAM.members.forEach(m=>{
+    const key=m.name.toLowerCase(); let target=byName[key];
+    if(!target){
+      target={id:uid(),name:m.name,pin:"0000",role:"icteam",status:m.status||"Active",shift:m.shift||"",pages:["launch","team","schedule","guides"],apps:[]};
+      CONFIG.people.push(target); byName[key]=target;
+    }
+    idMap[m.id]=target.id;
+  });
+  const remap=arr=>arr.forEach(x=>{ if(x.memberId&&idMap[x.memberId]) x.memberId=idMap[x.memberId]; });
+  remap(TEAM.assignments); remap(TEAM.issues); remap(TEAM.labor); remap(TEAM.schedule);
+  TEAM.members=[];
+  saveConfig(); saveTeam();
 }
 function defaultGuides(){return [
   {id:uid(),category:"Demand Bin Verification",title:"Download the Forward Demand CSV and load it",
@@ -580,6 +606,7 @@ function pushTeam(){ if(CLOUD_OK&&db&&!suppressPush) db.collection("meta").doc("
 function afterCloud(){
   if($("loginView").style.display!=="none"){ renderLoginNames(); return; }
   if($("modal").classList.contains("open")) return;   // don't disrupt an open form
+  mergeLegacyMembers();
   renderActive();
 }
 function renderActive(){
@@ -591,7 +618,7 @@ function renderActive(){
 
 function boot(){
   try{document.head.insertAdjacentHTML("beforeend","<style>"+REPORT_CSS+"</style>");}catch(e){}
-  loadConfig(); loadTeam();
+  loadConfig(); loadTeam(); mergeLegacyMembers();
   const t=store.get("ichub_theme"); if(t) document.documentElement.dataset.theme=t;
   $("loginOrg").textContent=CONFIG.org; $("loginSub").textContent=CONFIG.sub+" · one front door";
   renderLoginNames();
@@ -604,7 +631,8 @@ function tick(){const el=$("clock");if(el)el.textContent=new Date().toLocaleTime
 /* ---------- login ---------- */
 function renderLoginNames(){
   $("loginName").innerHTML='<option value="">Select your name…</option>'+
-    CONFIG.people.map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join("");
+    CONFIG.people.map((p,i)=>({p,i})).filter(x=>x.p.status!=="Inactive")
+      .map(({p,i})=>`<option value="${i}">${esc(p.name)}</option>`).join("");
 }
 function doLogin(){
   const idx=$("loginName").value, pin=$("loginPin").value.trim();
@@ -612,14 +640,15 @@ function doLogin(){
   const p=CONFIG.people[+idx];
   if(!pin) return showErr("loginErr","Enter your hub PIN.");
   if(pin!==String(p.pin)) return showErr("loginErr","That PIN doesn't match. Try again.");
-  session={name:p.name,role:p.role}; store.set("ichub_session",JSON.stringify(session));
+  session={name:p.name,role:p.role,personId:p.id}; store.set("ichub_session",JSON.stringify(session));
   $("loginPin").value=""; $("loginErr").classList.add("hidden"); enterApp();
 }
 function showErr(id,m){const e=$(id);e.textContent=m;e.classList.remove("hidden")}
 function enterApp(){
   $("loginView").style.display="none"; $("app").style.display="block";
-  const person=CONFIG.people.find(p=>p.name===session.name)||{role:session.role,pages:session.pages,apps:session.apps};
-  session.role=person.role||session.role;
+  const person=(session.personId&&CONFIG.people.find(p=>p.id===session.personId))
+    ||CONFIG.people.find(p=>p.name===session.name)||{role:session.role,pages:session.pages,apps:session.apps};
+  session.role=person.role||session.role; session.personId=person.id||session.personId;
   session.pages=effPages(person); session.apps=effApps(person);
   const r=CONFIG.roles[session.role]||{label:session.role,color:"#68788A"};
   $("barUser").textContent=session.name; $("barRole").textContent=r.label; $("barRole").style.background=r.color;
@@ -628,7 +657,7 @@ function enterApp(){
   const first=["launch","team","schedule","guides","reports","admin"].find(p=>session.pages.includes(p))||"launch";
   showView(first);
 }
-function logout(){store.del("ichub_session");session=null;sel.clear();adminUnlocked=false;selMember=null;
+function logout(){store.del("ichub_session");session=null;sel.clear();adminUnlocked=false;
   $("app").style.display="none";$("loginView").style.display="flex";$("loginName").value=""}
 
 /* access — per user, with sensible fallback to role when not set explicitly */
@@ -709,7 +738,10 @@ function statusClass(s){return {"Not Started":"on-ns","In Progress":"on-ip","Com
 function prioBadge(p){const m={Low:"b-gray",Normal:"b-blue",High:"b-amber",Urgent:"b-red"};return `<span class="badge ${m[p]||'b-gray'}">${esc(p||'Normal')}</span>`}
 function statusBadge(s){const m={"Not Started":"b-gray","In Progress":"b-amber","Completed":"b-green","Blocked":"b-red"};return `<span class="badge ${m[s]||'b-gray'}">${esc(s)}</span>`}
 function sevBadge(s){const m={Low:"b-gray",Medium:"b-amber",High:"b-red"};return `<span class="badge ${m[s]||'b-gray'}">${esc(s)}</span>`}
-function mName(id){const m=TEAM.members.find(x=>x.id===id);return m?m.name:"Unassigned"}
+function mName(id){const m=CONFIG.people.find(x=>x.id===id);return m?m.name:"Unassigned"}
+function activeMembers(){return CONFIG.people.filter(p=>p.status!=="Inactive")}
+function fmtDur(ms){ if(!ms||ms<0)return""; const mins=Math.round(ms/60000); if(mins<60)return mins+"m"; const h=Math.floor(mins/60),m=mins%60; return h+"h"+(m?" "+m+"m":""); }
+function fmtClock(ts){ return ts?new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):""; }
 
 function renderTeamManager(v){
   v.innerHTML=`
@@ -717,7 +749,7 @@ function renderTeamManager(v){
       <p>See who's on what, track status, and clear blockers. Manage the roster in Admin → Team members.</p></div>
       <button class="btn btn-ghost btn-sm no-print" onclick="window.print()">Print daily report</button></div>
     <div class="subnav">
-      ${[["dashboard","Dashboard"],["assignments","Assignments"],["issues","Issues"],["labor","Time & labor"]]
+      ${[["dashboard","Dashboard"],["assignments","Assignments"],["issues","Issues"],["labor","Time & labor"],["kpi","KPI"]]
         .map(([k,l])=>`<button class="${k===teamTab?'active':''}" onclick="setTeamTab('${k}')">${l}</button>`).join("")}
     </div>
     <div id="teamBody"></div>`;
@@ -730,12 +762,15 @@ function renderTeamBody(){
     const tt=TEAM.assignments.filter(a=>a.date===td);
     const open=tt.filter(a=>a.status!=="Completed").length, done=tt.filter(a=>a.status==="Completed").length;
     const openIssues=TEAM.issues.filter(i=>i.status!=="Resolved").length;
-    const active=TEAM.members.filter(m=>m.status!=="Inactive").length;
+    const active=activeMembers().length;
+    const durs=tt.filter(a=>a.startedAt&&a.completedAt).map(a=>a.completedAt-a.startedAt);
+    const avgDur=durs.length?fmtDur(durs.reduce((s,d)=>s+d,0)/durs.length):"—";
     el.innerHTML=`
       <div class="statstrip">
         <div class="statbox"><div class="sl">Team members</div><div class="sv">${active}</div></div>
         <div class="statbox"><div class="sl">Open today</div><div class="sv">${open}</div></div>
         <div class="statbox"><div class="sl">Completed today</div><div class="sv">${done}</div></div>
+        <div class="statbox"><div class="sl">Avg completion time</div><div class="sv">${avgDur}</div></div>
         <div class="statbox"><div class="sl">Open issues</div><div class="sv" style="color:${openIssues?'var(--danger)':'inherit'}">${openIssues}</div></div>
       </div>
       <div class="card"><div class="card-head"><div><h3>Today's assignments</h3><p class="hint">${fmtDate(td)}</p></div>
@@ -774,18 +809,47 @@ function renderTeamBody(){
         <div id="laborBody"></div></div>`;
     renderLaborTable("laborBody",[...TEAM.labor].sort((a,b)=>String(b.date).localeCompare(String(a.date))||(b.ts||0)-(a.ts||0)),true);
   }
+  else if(teamTab==="kpi"){
+    el.innerHTML=renderKpiTable();
+  }
+}
+function renderKpiTable(){
+  const range=TEAM.assignments; // all-time; simple and predictable
+  const byMember={};
+  activeMembers().forEach(m=>byMember[m.id]={name:m.name,assigned:0,completed:0,durs:[],onTimeStarts:0,started:0});
+  range.forEach(a=>{
+    if(!a.memberId||!byMember[a.memberId])return;
+    const b=byMember[a.memberId]; b.assigned++;
+    if(a.status==="Completed")b.completed++;
+    if(a.startedAt)b.started++;
+    if(a.startedAt&&a.completedAt)b.durs.push(a.completedAt-a.startedAt);
+  });
+  const rows=Object.values(byMember).sort((a,b)=>b.completed-a.completed).map(b=>{
+    const avg=b.durs.length?fmtDur(b.durs.reduce((s,d)=>s+d,0)/b.durs.length):"—";
+    const rate=b.assigned?Math.round(b.completed/b.assigned*100)+"%":"—";
+    return `<tr><td><b>${esc(b.name)}</b></td><td>${b.assigned}</td><td>${b.started}</td><td>${b.completed}</td><td>${rate}</td><td>${avg}</td></tr>`;
+  }).join("");
+  return `<div class="card"><div class="card-head"><div><h3>Completion KPI by member</h3>
+    <p class="hint">All-time, from assignment start/complete timestamps.</p></div></div>
+    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>Member</th><th>Assigned</th><th>Started</th><th>Completed</th><th>Completion rate</th><th>Avg duration</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px">No data yet.</td></tr>'}</tbody></table></div></div>`;
 }
 function renderAssignList(target,list,showDate){
   const el=$(target); if(!el)return;
   if(!list.length){el.innerHTML=`<div class="empty">No assignments${showDate?'':' today'}. Add one to get started.</div>`;return}
-  el.innerHTML=list.map(t=>`<div class="lrow"><div class="li">
-    <h4>${esc(t.title)}</h4>
-    <p>${esc(mName(t.memberId))}${t.area?' · '+esc(t.area):''}${showDate?' · '+fmtDate(t.date):''}</p>
-    <div class="chips">${prioBadge(t.priority)}${statusBadge(t.status)}${t.notes?`<span class="tag">📝 ${esc(t.notes.slice(0,40))}${t.notes.length>40?'…':''}</span>`:''}</div>
+  el.innerHTML=list.map(t=>{
+    const app=t.linkedApp?CONFIG.apps.find(a=>a.key===t.linkedApp):null;
+    const dur=t.startedAt&&t.completedAt?fmtDur(t.completedAt-t.startedAt):"";
+    const timing=[t.startedAt?'Started '+fmtClock(t.startedAt):'',t.completedAt?'Done '+fmtClock(t.completedAt):'',dur].filter(Boolean).join(' · ');
+    return `<div class="lrow"><div class="li">
+    <h4>${t.scheduledTime?`<span class="mono" style="color:var(--signal);margin-right:6px">${esc(t.scheduledTime)}</span>`:''}${esc(t.title)}</h4>
+    <p>${esc(mName(t.memberId))}${t.area?' · '+esc(t.area):''}${showDate?' · '+fmtDate(t.date):''}${timing?' · '+esc(timing):''}</p>
+    <div class="chips">${prioBadge(t.priority)}${statusBadge(t.status)}${app?`<span class="tag">🔗 ${esc(app.name)}</span>`:''}${t.notes?`<span class="tag">📝 ${esc(t.notes.slice(0,40))}${t.notes.length>40?'…':''}</span>`:''}</div>
+    ${attachChips(t.attachments)}
     </div><div class="no-print" style="display:flex;gap:6px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="openAssignModal('${t.id}')">Edit</button>
       <button class="btn btn-danger btn-sm" onclick="delAssign('${t.id}')">✕</button>
-    </div></div>`).join("");
+    </div></div>`;}).join("");
 }
 function renderIssueList(target,list,showResolved){
   const el=$(target); if(!el)return;
@@ -799,36 +863,64 @@ function renderIssueList(target,list,showResolved){
       <button class="btn btn-danger btn-sm" onclick="delIssue('${i.id}')">✕</button>
     </div></div>`).join("");
 }
-function renderMemberList(){
-  const el=$("memberList"); if(!el)return;
-  if(!TEAM.members.length){el.innerHTML=`<div class="empty">No team members yet. Add your team.</div>`;return}
-  el.innerHTML=TEAM.members.map(m=>`<div class="lrow"><div class="li">
-    <h4>${esc(m.name)}</h4><p>${esc(m.role||'IC Specialist')}${m.shift?' · '+esc(m.shift):''}</p>
-    <div class="chips"><span class="badge ${m.status==='Inactive'?'b-gray':'b-green'}">${esc(m.status||'Active')}</span></div>
-    </div><div style="display:flex;gap:6px">
-      <button class="btn btn-ghost btn-sm" onclick="openMemberModal('${m.id}')">Edit</button>
-      <button class="btn btn-danger btn-sm" onclick="delMember('${m.id}')">✕</button>
-    </div></div>`).join("");
-}
 
 /* team modals */
-function memberOpts(sel){return TEAM.members.map(m=>`<option value="${m.id}" ${m.id===sel?'selected':''}>${esc(m.name)}</option>`).join("")}
+function memberOpts(sel){return activeMembers().map(m=>`<option value="${m.id}" ${m.id===sel?'selected':''}>${esc(m.name)}</option>`).join("")}
+function appOpts(sel){return CONFIG.apps.map(a=>`<option value="${a.key}" ${a.key===sel?'selected':''}>${esc(a.name)}</option>`).join("")}
+async function uploadAttachment(file){
+  if(!CLOUD_OK||typeof firebase==="undefined"||!firebase.storage) throw new Error("Cloud storage isn't connected yet.");
+  const path="assignments/"+Date.now()+"_"+file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+  const ref=firebase.storage().ref().child(path);
+  await ref.put(file);
+  const url=await ref.getDownloadURL();
+  return {name:file.name,url,size:file.size,path};
+}
+function renderAttachList(list){
+  if(!list.length)return `<div style="font-size:12.5px;color:var(--muted)">No files attached yet.</div>`;
+  return list.map((f,i)=>`<div class="tag" style="display:inline-flex;align-items:center;gap:6px;padding:5px 9px">
+    <a href="${esc(f.url)}" target="_blank" rel="noopener" style="color:var(--info);text-decoration:none">📎 ${esc(f.name)}</a>
+    <button onclick="removeStagedAttachment(${i})" style="color:var(--danger);font-weight:700;line-height:1">✕</button></div>`).join(" ");
+}
+let _stagedAttachments=[];
+function removeStagedAttachment(i){ _stagedAttachments.splice(i,1); const el=$("aAttachList"); if(el)el.innerHTML=renderAttachList(_stagedAttachments); }
+async function handleAttachPick(input){
+  const file=input.files[0]; if(!file)return; input.value="";
+  toast("Uploading "+file.name+"…");
+  try{ const rec=await uploadAttachment(file); _stagedAttachments.push(rec);
+    const el=$("aAttachList"); if(el)el.innerHTML=renderAttachList(_stagedAttachments);
+    toast("Attached "+file.name); }
+  catch(e){ toast("Upload failed: "+(e.message||"check cloud sync")); }
+}
 function openAssignModal(id){
-  const t=id?TEAM.assignments.find(x=>x.id===id):{title:"",memberId:"",priority:"Normal",status:"Not Started",area:"",notes:"",date:today()};
+  const t=id?TEAM.assignments.find(x=>x.id===id):{title:"",memberId:"",priority:"Normal",status:"Not Started",area:"",notes:"",date:today(),scheduledTime:"",linkedApp:"",attachments:[]};
+  _stagedAttachments=(t.attachments||[]).slice();
   modal(id?"Edit assignment":"New assignment",
     `<div class="field"><label>Assignment</label><input id="aTitle" value="${esc(t.title)}" placeholder="Cycle count aisle 12, shortage research…"></div>
      <div class="g2">
        <div class="field"><label>Assign to</label><select id="aMember"><option value="">Unassigned</option>${memberOpts(t.memberId)}</select></div>
+       <div class="field"><label>Date</label><input id="aDate" type="date" value="${esc(t.date||today())}"></div>
+       <div class="field"><label>Time</label><input id="aTime" type="time" value="${esc(t.scheduledTime||'')}"></div>
        <div class="field"><label>Priority</label><select id="aPrio">${["Low","Normal","High","Urgent"].map(p=>`<option ${p===t.priority?'selected':''}>${p}</option>`).join("")}</select></div>
        <div class="field"><label>Status</label><select id="aStatus">${["Not Started","In Progress","Completed","Blocked"].map(s=>`<option ${s===t.status?'selected':''}>${s}</option>`).join("")}</select></div>
        <div class="field"><label>Area / division</label><input id="aArea" value="${esc(t.area)}" placeholder="NH, VP, dock…"></div>
      </div>
+     <div class="field"><label>Linked application <span style="text-transform:none;font-weight:400;color:var(--muted)">— lets them jump straight there</span></label>
+       <select id="aApp"><option value="">None</option>${appOpts(t.linkedApp)}</select></div>
+     <div class="field"><label>Attachments</label>
+       <div id="aAttachList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${renderAttachList(_stagedAttachments)}</div>
+       <input type="file" id="aFile" style="display:none" onchange="handleAttachPick(this)">
+       <button type="button" class="btn btn-ghost btn-sm" onclick="$('aFile').click()">+ Attach file</button>
+       ${CLOUD_OK?'':'<div style="font-size:11.5px;color:var(--warn);margin-top:6px">Cloud sync is not connected — files cannot upload right now.</div>'}</div>
      <div class="field"><label>Notes</label><textarea id="aNotes" placeholder="Detail, blockers, follow-up…">${esc(t.notes)}</textarea></div>`,
     [{label:"Cancel",cls:"btn-ghost",fn:closeModal},
      {label:id?"Save":"Add",cls:"btn-signal",fn:()=>{
        const title=$("aTitle").value.trim(); if(!title)return toast("Give the assignment a name.");
-       const data={title,memberId:$("aMember").value,priority:$("aPrio").value,status:$("aStatus").value,area:$("aArea").value.trim(),notes:$("aNotes").value.trim()};
-       if(id){Object.assign(t,data)} else {TEAM.assignments.push({id:uid(),date:today(),...data})}
+       const newStatus=$("aStatus").value;
+       const data={title,memberId:$("aMember").value,date:$("aDate").value||today(),scheduledTime:$("aTime").value,
+         priority:$("aPrio").value,area:$("aArea").value.trim(),linkedApp:$("aApp").value,notes:$("aNotes").value.trim(),
+         attachments:_stagedAttachments.slice()};
+       if(id){ setAssignStatus(t,newStatus); Object.assign(t,data); }
+       else{ const rec={id:uid(),status:"Not Started",...data}; setAssignStatus(rec,newStatus); TEAM.assignments.push(rec); }
        saveTeam();closeModal();renderActive();toast(id?"Assignment saved":"Assignment added");
      }}]);
 }
@@ -854,51 +946,20 @@ function openIssueModal(id){
 }
 function resolveIssue(id){const i=TEAM.issues.find(x=>x.id===id);if(i){i.status="Resolved";saveTeam();renderActive();toast("Marked resolved")}}
 function delIssue(id){TEAM.issues=TEAM.issues.filter(x=>x.id!==id);saveTeam();renderActive();toast("Removed")}
-function openMemberModal(id){
-  const m=id?TEAM.members.find(x=>x.id===id):{name:"",role:"IC Specialist",shift:"",status:"Active"};
-  modal(id?"Edit member":"Add member",
-    `<div class="field"><label>Name</label><input id="mName" value="${esc(m.name)}" placeholder="Full name"></div>
-     <div class="g2">
-       <div class="field"><label>Role</label><input id="mRole" value="${esc(m.role)}" placeholder="IC Specialist"></div>
-       <div class="field"><label>Shift</label><input id="mShift" value="${esc(m.shift)}" placeholder="1st, 2nd…"></div>
-     </div>
-     <div class="field"><label>Status</label><select id="mStatus">${["Active","Training","Inactive"].map(s=>`<option ${s===m.status?'selected':''}>${s}</option>`).join("")}</select></div>`,
-    [{label:"Cancel",cls:"btn-ghost",fn:closeModal},
-     {label:id?"Save":"Add",cls:"btn-signal",fn:()=>{
-       const name=$("mName").value.trim(); if(!name)return toast("Enter a name.");
-       const data={name,role:$("mRole").value.trim()||"IC Specialist",shift:$("mShift").value.trim(),status:$("mStatus").value};
-       if(id){Object.assign(m,data)} else {TEAM.members.push({id:uid(),...data})}
-       saveTeam();closeModal();renderActive();toast(id?"Member saved":"Member added");
-     }}]);
-}
-function delMember(id){
-  if(TEAM.assignments.some(a=>a.memberId===id)){ if(!confirm("This member has assignments. Remove anyway?"))return; }
-  TEAM.members=TEAM.members.filter(x=>x.id!==id);saveTeam();renderActive();toast("Removed");
-}
 
-/* specialist self-service */
+/* specialist self-service — identified automatically from the hub login, no separate picker needed */
 function renderTeamSpecialist(v){
-  const active=TEAM.members.filter(m=>m.status!=="Inactive");
-  if(selMember===null){
-    const match=active.find(m=>m.name.toLowerCase()===session.name.toLowerCase());
-    if(match) selMember=match.id;
-  }
+  const me=CONFIG.people.find(p=>p.id===session.personId);
   v.innerHTML=`
     <div class="page-head"><div><div class="eyebrow">My work</div><h2>Today's assignments</h2>
-      <p>${fmtDate(today())}</p></div>
-      ${selMember?`<button class="btn btn-ghost btn-sm" onclick="clearSelMember()">← Switch name</button>`:''}</div>
+      <p>${fmtDate(today())}</p></div></div>
     <div id="specBody"></div>`;
   const b=$("specBody");
-  if(!active.length){b.innerHTML=`<div class="empty"><strong>No team members yet</strong>Your manager needs to add the team first.</div>`;return}
-  if(!selMember){
-    b.innerHTML=`<div class="card"><div class="card-head"><div><h3>Who are you?</h3><p class="hint">Pick your name to see your assignments.</p></div></div>
-      <div class="board">${active.map(m=>`<button class="tile" style="--tc:var(--r-icteam);cursor:pointer;text-align:left" onclick="setSelMember('${m.id}')">
-        <div class="spine"></div><h3>${esc(m.name)}</h3><p>${esc(m.role||'IC Specialist')}${m.shift?' · '+esc(m.shift):''}</p></button>`).join("")}</div></div>`;
-    return;
-  }
-  const my=TEAM.assignments.filter(a=>a.memberId===selMember&&a.date===today());
+  if(!me||me.status==="Inactive"){b.innerHTML=`<div class="empty"><strong>Ask your manager to add or reactivate you</strong>Your login isn't matched to an active team member yet.</div>`;return}
+  const my=TEAM.assignments.filter(a=>a.memberId===me.id&&a.date===today())
+    .sort((a,b2)=>String(a.scheduledTime||"99:99").localeCompare(String(b2.scheduledTime||"99:99")));
   b.innerHTML=`
-    <div class="card"><div class="card-head"><div><h3>📋 ${esc(mName(selMember))} — today</h3><p class="hint">Tap a status to update it. Only your manager can add assignments.</p></div></div>
+    <div class="card"><div class="card-head"><div><h3>📋 Today's schedule</h3><p class="hint">Tap Start when you begin, Done when you finish. Only your manager can add assignments.</p></div></div>
       <div id="myList"></div></div>
     <div class="card"><div class="card-head"><div><h3>⏱ Log my time</h3><p class="hint">Record what you worked on so it shows on the labor report.</p></div>
       <button class="btn btn-signal btn-sm" onclick="specLabor()">+ Log time</button></div>
@@ -908,20 +969,32 @@ function renderTeamSpecialist(v){
       <div id="myIssues"></div></div>`;
   const ml=$("myList");
   if(!my.length){ml.innerHTML=`<div class="empty">No assignments for today. Check back or contact your manager.</div>`}
-  else ml.innerHTML=my.map(t=>`<div class="lrow"><div class="li">
-    <h4>${esc(t.title)}</h4><p>${t.area?esc(t.area)+' · ':''}</p>
-    <div class="chips">${prioBadge(t.priority)}</div>
+  else ml.innerHTML=my.map(t=>{
+    const app=t.linkedApp?CONFIG.apps.find(a=>a.key===t.linkedApp):null;
+    const dur=t.startedAt&&t.completedAt?fmtDur(t.completedAt-t.startedAt):"";
+    return `<div class="lrow"><div class="li">
+    <h4>${t.scheduledTime?`<span class="mono" style="color:var(--signal);margin-right:6px">${esc(t.scheduledTime)}</span>`:''}${esc(t.title)}</h4>
+    <p>${t.area?esc(t.area)+' · ':''}${t.startedAt?'Started '+fmtClock(t.startedAt):''}${t.completedAt?' · Done '+fmtClock(t.completedAt):''}${dur?' · '+dur:''}</p>
+    <div class="chips">${prioBadge(t.priority)}${app?`<button class="btn btn-signal btn-sm" onclick="openApp('${app.key}')">Open ${esc(app.name)} →</button>`:''}</div>
+    ${attachChips(t.attachments)}
+    ${t.notes?`<p style="font-size:12.5px;color:var(--muted);margin-top:6px">📝 ${esc(t.notes)}</p>`:''}
     <div class="statusbtns">
-      ${["Not Started","In Progress","Completed","Blocked"].map(s=>`<button class="sbtn ${t.status===s?statusClass(s):''}" onclick="myStatus('${t.id}','${s}')">${s==="Completed"?"✓ Done":s}</button>`).join("")}
-    </div></div></div>`).join("");
-  renderLaborTable("myLabor",TEAM.labor.filter(l=>l.memberId===selMember&&l.date===today()),false);
-  const mi=TEAM.issues.filter(i=>i.memberId===selMember&&i.status!=="Resolved");
+      ${["Not Started","In Progress","Completed","Blocked"].map(s=>`<button class="sbtn ${t.status===s?statusClass(s):''}" onclick="myStatus('${t.id}','${s}')">${s==="Completed"?"✓ Done":s==="In Progress"?"▶ Start":s}</button>`).join("")}
+    </div></div></div>`;}).join("");
+  renderLaborTable("myLabor",TEAM.labor.filter(l=>l.memberId===me.id&&l.date===today()),false);
+  const mi=TEAM.issues.filter(i=>i.memberId===me.id&&i.status!=="Resolved");
   $("myIssues").innerHTML = mi.length ? mi.map(i=>`<div class="lrow"><div class="li"><h4>${esc(i.title)}</h4>
     <div class="chips">${sevBadge(i.severity)}${statusBadge(i.status)}</div></div></div>`).join("") : `<div class="empty">No open issues from you.</div>`;
 }
-function setSelMember(id){selMember=id;renderTeam()}
-function clearSelMember(){selMember=null;renderTeam()}
-function myStatus(id,s){const t=TEAM.assignments.find(x=>x.id===id);if(t){t.status=s;saveTeam();renderActive();toast("Updated to "+s)}}
+function attachChips(list){ if(!list||!list.length)return"";
+  return `<div class="chips">${list.map(f=>`<a class="tag" href="${esc(f.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:var(--info)">📎 ${esc(f.name)}</a>`).join("")}</div>`; }
+function setAssignStatus(t,s){
+  if(s==="In Progress"&&!t.startedAt)t.startedAt=Date.now();
+  if(s==="Completed"){ if(!t.startedAt)t.startedAt=Date.now(); t.completedAt=Date.now(); }
+  else if(t.status==="Completed"&&s!=="Completed"){ t.completedAt=null; }
+  t.status=s;
+}
+function myStatus(id,s){const t=TEAM.assignments.find(x=>x.id===id);if(t){setAssignStatus(t,s);saveTeam();renderActive();toast("Updated to "+s)}}
 function specIssue(){
   modal("Raise an issue",
     `<div class="field"><label>Issue</label><input id="iTitle" placeholder="Scanner down, waiting on material…"></div>
@@ -931,7 +1004,7 @@ function specIssue(){
     [{label:"Cancel",cls:"btn-ghost",fn:closeModal},
      {label:"Log issue",cls:"btn-signal",fn:()=>{
        const title=$("iTitle").value.trim(); if(!title)return toast("Describe the issue.");
-       TEAM.issues.push({id:uid(),date:today(),ts:Date.now(),title,memberId:selMember,severity:$("iSev").value,status:"Open",area:$("iArea").value.trim(),notes:$("iNotes").value.trim()});
+       TEAM.issues.push({id:uid(),date:today(),ts:Date.now(),title,memberId:session.personId,severity:$("iSev").value,status:"Open",area:$("iArea").value.trim(),notes:$("iNotes").value.trim()});
        saveTeam();closeModal();renderActive();toast("Issue logged — manager notified on their board");
      }}]);
 }
@@ -977,7 +1050,7 @@ function specLabor(){
     {label:"Log time",cls:"btn-signal",fn:()=>{
       const task=$("lTask").value.trim(); const hours=parseFloat($("lHours").value)||0;
       if(!task&&!hours)return toast("Add a task or hours.");
-      TEAM.labor.push({id:uid(),ts:Date.now(),memberId:selMember,date:today(),task,hours,output:$("lOutput").value.trim(),notes:$("lNotes").value.trim()});
+      TEAM.labor.push({id:uid(),ts:Date.now(),memberId:session.personId,date:today(),task,hours,output:$("lOutput").value.trim(),notes:$("lNotes").value.trim()});
       saveTeam();closeModal();renderActive();toast("Time logged");
     }}]);
 }
@@ -992,7 +1065,7 @@ function renderSchedulePage(){
   if(!scheduleWeekStart)scheduleWeekStart=mondayOf(today());
   const v=$("scheduleView"), mgr=canManageTeam();
   const days=[0,1,2,3,4,5,6].map(i=>addDays(scheduleWeekStart,i));
-  const active=TEAM.members.filter(m=>m.status!=="Inactive");
+  const active=activeMembers();
   const dayName=d=>new Date(d+"T00:00:00").toLocaleDateString([], {weekday:'short',month:'numeric',day:'numeric'});
   const cell=(m,d)=>{const e=schedEntry(m.id,d);const label=e?((e.shift||'')+(e.area?' · '+e.area:'')):'';
     const bg=e&&e.shift==='Vacation'?'var(--warn-bg)':e&&e.shift==='Off'?'var(--line2)':e?'var(--info-bg)':'transparent';
@@ -1005,7 +1078,7 @@ function renderSchedulePage(){
         <button class="btn btn-ghost btn-sm" onclick="schedThisWeek()">This week</button>
         <button class="btn btn-ghost btn-sm" onclick="schedWeek(7)">→</button></div></div>
     ${active.length?`<div class="card" style="overflow-x:auto"><table><thead><tr><th>Member</th>${days.map(d=>`<th>${dayName(d)}</th>`).join("")}</tr></thead>
-      <tbody>${active.map(m=>{const mine=m.name.toLowerCase()===session.name.toLowerCase();
+      <tbody>${active.map(m=>{const mine=m.id===session.personId;
         return `<tr${mine?' style="outline:2px solid var(--signal);outline-offset:-2px"':''}><td><strong>${esc(m.name)}</strong><br><span style="font-size:11px;color:var(--muted)">${esc(m.shift||m.role||'')}</span></td>${days.map(d=>cell(m,d)).join("")}</tr>`;
       }).join("")}</tbody></table></div>`:`<div class="empty"><strong>No team members yet</strong>Add the roster in Admin → Team members.</div>`}`;
 }
@@ -1169,19 +1242,56 @@ function renderResultError(src,def,msg){
       : esc(msg||"Unknown error. Check the project config and that the collection exists.")}</p>`;
   $("reportResults").appendChild(wrap);
 }
+function reportTheme(src){ return src.theme||{accent:"#1a2038",org:"815 Chapman Warehouse",prep:"Inventory Control",foot:"Chapman Warehouse"}; }
+function reportPrintCSS(accent){ return `
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Segoe UI",Arial,sans-serif;color:#111;font-size:10pt;background:#fff;padding:.55in}
+  @page{size:letter portrait;margin:.55in}@media print{body{padding:0}table,tr{break-inside:avoid}}
+  .lh{display:flex;justify-content:space-between;gap:16pt;border-bottom:2.5pt solid ${accent};padding-bottom:10pt;margin-bottom:14pt}
+  .lh-org{font-size:8pt;font-weight:700;color:#6b7280;letter-spacing:.12em;text-transform:uppercase;margin-bottom:4pt}
+  .lh-title{font-size:20pt;font-weight:700;color:${accent};line-height:1.1}
+  .lh-sub{font-size:9pt;color:#6b7280;margin-top:3pt}
+  .lh-gen{font-size:8.5pt;color:#6b7280;text-align:right;line-height:1.7}
+  .lh-foot{margin-top:16pt;padding-top:6pt;border-top:1pt solid #e5e7eb;font-size:7.5pt;color:#9ca3af;text-align:center;text-transform:uppercase;letter-spacing:.08em}
+  table{width:100%;border-collapse:collapse;font-size:9pt;margin-bottom:8pt}
+  th{background:${accent};color:#fff;text-align:left;padding:5pt 8pt;font-size:8pt;text-transform:uppercase;letter-spacing:.04em}
+  td{padding:4pt 8pt;border-bottom:.5pt solid #e5e7eb;font-size:9pt}
+  tbody tr:nth-child(even) td{background:#f9fafb}
+  .rpt{font-family:"Segoe UI",Arial,sans-serif;color:#111}
+  .rpt-head{display:flex;justify-content:space-between;gap:16pt;border-bottom:2.5pt solid ${accent};padding-bottom:10pt;margin-bottom:14pt}
+  .rpt-org{font-size:8pt;font-weight:700;color:#6b7280;letter-spacing:.12em;text-transform:uppercase}
+  .rpt-title{font-size:20pt;font-weight:700;color:${accent}}.rpt-subm{font-size:9pt;color:#6b7280;margin-top:2pt}
+  .rpt-gen{font-size:8.5pt;color:#6b7280;text-align:right;line-height:1.6}
+  .rpt-sec{font-size:8pt;font-weight:700;color:#374151;letter-spacing:.08em;text-transform:uppercase;border-bottom:1pt solid #e5e7eb;padding-bottom:4pt;margin:14pt 0 8pt}
+  .rpt-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8pt;margin-bottom:6pt}
+  .rpt-stat{border:1pt solid #d1d5db;border-radius:4pt;padding:9pt;background:#f9fafb;text-align:center}
+  .rpt-v{font-size:18pt;font-weight:700}.rpt-l{font-size:7pt;color:#6b7280;margin-top:2pt;text-transform:uppercase;letter-spacing:.05em}
+  .rpt-tbl{width:100%;border-collapse:collapse;font-size:9pt;margin-bottom:6pt}
+  .rpt-tbl th{background:${accent};color:#fff;padding:5pt 8pt;text-align:left;font-size:8pt;text-transform:uppercase;letter-spacing:.04em}
+  .rpt-tbl td{padding:4pt 8pt;border-bottom:.5pt solid #e5e7eb}
+  .rpt-tbl tbody tr:nth-child(even) td{background:#f9fafb}
+  .rpt-total td{background:${accent} !important;color:#fff;font-weight:700}`;
+}
 function printResult(btn){
   const card=btn.closest(".card"); const {src,def,rows}=card._data;
   const w=window.open("","_blank"); if(!w)return toast("Allow pop-ups to print.");
-  let content;
-  if(def.build){ content=BUILDERS[def.build](rows,src); }
-  else{ const cols=def.columns;
-    content=`<h1>${esc(src.name)} — ${esc(def.name)}</h1><p>${rows.length} rows · ${new Date().toLocaleString()}</p>
-    <table class="rpt-tbl"><thead><tr>${cols.map(c=>`<th>${esc(c[1])}</th>`).join("")}</tr></thead>
-    <tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(cellVal(r[c[0]]))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  const th=reportTheme(src);
+  const range=(REPORT_RANGE.from||REPORT_RANGE.to)?((REPORT_RANGE.from||"…")+" — "+(REPORT_RANGE.to||"…")):"All dates";
+  const now=new Date().toLocaleString();
+  let content, header="";
+  if(def.build){ content=BUILDERS[def.build](rows,src); }   // builder supplies its own letterhead
+  else{
+    header=`<div class="lh"><div><div class="lh-org">${esc(th.org)}</div>
+      <div class="lh-title">${esc(def.name)}</div>
+      <div class="lh-sub">${esc(range)} · ${rows.length} record${rows.length===1?"":"s"}</div></div>
+      <div class="lh-gen">Generated: ${now}<br>Prepared by: ${esc(th.prep)}</div></div>`;
+    const cols=def.columns;
+    content=`<table><thead><tr>${cols.map(c=>`<th>${esc(c[1])}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(cellVal(r[c[0]]))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
   }
-  w.document.write(`<html><head><title>${esc(src.name)} — ${esc(def.name)}</title><style>
-    body{padding:24px}h1{font-size:18px;margin:0 0 2px;font-family:Arial}p{color:#555;font-size:12px;margin:0 0 14px;font-family:Arial}
-    ${REPORT_CSS}</style></head><body>${content}</body></html>`);
+  w.document.write(`<html><head><title>${esc(src.name)} — ${esc(def.name)}</title>
+    <style>${reportPrintCSS(th.accent)}</style></head><body>${header}${content}
+    <div class="lh-foot">${esc(th.foot)} · ${now}</div></body></html>`);
   w.document.close(); w.focus(); setTimeout(()=>w.print(),350);
 }
 function csvResult(btn){
@@ -1208,7 +1318,7 @@ function renderAdmin(){
   v.innerHTML=`
     <div class="page-head"><div><div class="eyebrow">Admin</div><h2>Manage the hub</h2>
       <p>Set app links and gating, people and access, and security. Changes save to this browser; use Export to back up or move to a shared database.</p></div></div>
-    <div class="subnav">${[["links","Apps & gating"],["members","Team members"],["people","People & access"],["security","Security"],["export","Export / import"]]
+    <div class="subnav">${[["links","Apps & gating"],["members","Team members"],["security","Security"],["export","Export / import"]]
       .map(([k,l])=>`<button class="${k===adminTab?'active':''}" onclick="setAdminTab('${k}')">${l}</button>`).join("")}</div>
     <div id="adminBody"></div>`;
   renderAdminBody();
@@ -1233,25 +1343,22 @@ function renderAdminBody(){
       </tr>`).join("")}</tbody></table></div></div>`;
   }
   else if(adminTab==="members"){
-    el.innerHTML=`<div class="card"><div class="card-head"><div><h3>Team members</h3>
-      <p class="hint">The roster the whole hub uses — assignments, time logs, schedule, and the specialist screen all draw from this list.</p></div>
-      <button class="btn btn-signal btn-sm no-print" onclick="openMemberModal()">+ Add member</button></div>
-      <div id="memberList"></div></div>`;
-    renderMemberList();
-  }
-  else if(adminTab==="people"){
     const ro=r=>Object.entries(CONFIG.roles).map(([k,v])=>`<option value="${k}" ${k===r?'selected':''}>${v.label}</option>`).join("");
-    el.innerHTML=`<div class="card"><div class="card-head"><div><h3>People &amp; access</h3>
-      <p class="hint">Set each person's sign-in, role, and exactly which pages and apps they see in the hub.
-      Role decides the Team view (manager vs specialist) and the badge.</p></div></div>
-      <div class="table-wrap"><table><thead><tr><th>Name</th><th style="width:100px">Hub PIN</th><th style="width:150px">Role</th><th style="width:150px">Access</th><th style="width:44px"></th></tr></thead>
+    el.innerHTML=`<div class="card"><div class="card-head"><div><h3>Team members</h3>
+      <p class="hint">The single roster for the hub — this is who appears on the login screen, who assignments/schedule/labor point at,
+      and where PIN and Active/Inactive status live. <strong>Inactive</strong> people are hidden from login and the specialist picker but keep their history.</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Name</th><th style="width:95px">Hub PIN</th><th style="width:150px">Role</th>
+        <th style="width:100px">Shift</th><th style="width:110px">Status</th><th style="width:130px">Access</th><th style="width:44px"></th></tr></thead>
       <tbody>${CONFIG.people.map((p,i)=>`<tr>
         <td><input value="${esc(p.name)}" onchange="CONFIG.people[${i}].name=this.value;saveConfig();renderLoginNames()"></td>
         <td><input class="mono" value="${esc(String(p.pin))}" onchange="CONFIG.people[${i}].pin=this.value.trim();saveConfig()"></td>
         <td><select onchange="CONFIG.people[${i}].role=this.value;saveConfig()">${ro(p.role)}</select></td>
+        <td><input value="${esc(p.shift)}" placeholder="1st, 2nd…" onchange="CONFIG.people[${i}].shift=this.value.trim();saveConfig()"></td>
+        <td><select onchange="CONFIG.people[${i}].status=this.value;saveConfig();renderLoginNames()">
+          ${["Active","Training","Inactive"].map(s=>`<option ${s===(p.status||'Active')?'selected':''}>${s}</option>`).join("")}</select></td>
         <td><button class="btn btn-ghost btn-sm" onclick="openAccessModal(${i})">Pages &amp; apps</button></td>
         <td><button class="btn btn-danger btn-sm" onclick="delPerson(${i})">✕</button></td></tr>`).join("")}</tbody></table></div>
-      <button class="btn btn-signal btn-sm" style="margin-top:14px" onclick="addPerson()">+ Add person</button></div>`;
+      <button class="btn btn-signal btn-sm" style="margin-top:14px" onclick="addPerson()">+ Add team member</button></div>`;
   }
   else if(adminTab==="security"){
     el.innerHTML=`<div class="card"><h3>Admin password</h3>
@@ -1293,8 +1400,11 @@ function openAccessModal(i){
        saveConfig();closeModal();renderAdminBody();toast("Access updated");
      }}]);
 }
-function addPerson(){CONFIG.people.push({name:"New person",pin:"0000",role:"icteam",pages:["launch","team"],apps:[]});saveConfig();renderAdminBody();renderLoginNames()}
+function addPerson(){CONFIG.people.push({id:uid(),name:"New person",pin:"0000",role:"icteam",status:"Active",shift:"",pages:["launch","team","schedule","guides"],apps:[]});saveConfig();renderAdminBody();renderLoginNames()}
 function delPerson(i){if(CONFIG.people.length<=1)return toast("Keep at least one person.");
+  const p=CONFIG.people[i];
+  const hasHistory=TEAM.assignments.some(a=>a.memberId===p.id)||TEAM.labor.some(l=>l.memberId===p.id)||TEAM.schedule.some(s=>s.memberId===p.id);
+  if(hasHistory&&!confirm(esc(p.name)+" has assignment/schedule/time history. Delete anyway? (Tip: set Status to Inactive instead to keep history and hide them from login.)"))return;
   CONFIG.people.splice(i,1);saveConfig();renderAdminBody();renderLoginNames()}
 function changeAdminPw(){
   const a=$("npw").value,b=$("npw2").value;
