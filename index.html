@@ -401,26 +401,27 @@ const REPORT_SOURCES={
   shortage:{ name:"Shortage & Over Pull", color:"#E4952B",
     config:{apiKey:"AIzaSyAbLkTbc0bpzqF5NyTLUi97kP1OnN_EyVw",authDomain:"new-picker-report-database.firebaseapp.com",projectId:"new-picker-report-database",storageBucket:"new-picker-report-database.firebasestorage.app",messagingSenderId:"579793542671",appId:"1:579793542671:web:4d2a75af117b35a6de0d7a"},
     reports:{
-      short_summary:{name:"Shortage Summary",desc:"Active shortages.",collection:"shortages_active",dateField:"date",
-        columns:[["date","Date"],["division","Div"],["product","Product"],["bin","Bin"],["qty","Qty"],["shift","Shift"],["status","Status"],["packStation","Station"]]},
-      short_archive:{name:"Shortage Archive",desc:"Resolved / archived shortages.",collection:"shortages_archive",dateField:"date",
-        columns:[["date","Date"],["division","Div"],["product","Product"],["bin","Bin"],["qty","Qty"],["shift","Shift"],["status","Status"]]},
-      op_log:{name:"Over Pull Log",desc:"Over-pull entries with pack station.",collection:"overpull_active",dateField:"date",
-        columns:[["date","Date"],["division","Div"],["product","Product"],["bin","Bin"],["qty","Qty"],["packStation","Station"],["shift","Shift"]]}
+      short_summary:{name:"Outbound Shortage Report",desc:"Executive summary + division/shift breakdown + detail.",collection:"shortages_active",dateField:"date",both:"shortages_archive",build:"shortageSummary"},
+      short_detail:{name:"Shortage Detail",desc:"Line-level active shortages.",collection:"shortages_active",dateField:"date",
+        columns:[["date","Date"],["division","Div"],["productCode","Product"],["shortedBin","Bin"],["qtyShorted","Qty Short"],["picker","Picker"],["pickDemand","Pick Demand"]]},
+      short_archive:{name:"Shortage Archive",desc:"Archived / historical shortages.",collection:"shortages_archive",dateField:"date",
+        columns:[["date","Date"],["division","Div"],["productCode","Product"],["shortedBin","Bin"],["qtyShorted","Qty Short"],["picker","Picker"]]},
+      op_report:{name:"Over Pull Report",desc:"Over-pull lines with picker, packer, station.",collection:"overpull_active",dateField:"date",
+        columns:[["date","Date"],["division","Div"],["productCode","Product"],["qty","Qty"],["picker","Picker"],["packer","Packer"],["packStation","Station"],["orderNumber","Order #"]]}
     }},
   ic:{ name:"IC Portal", color:"#2A79C6",
     config:{apiKey:"AIzaSyA1n5P6MFUojFsEBqlXaSLumNiChgAH1Lw",authDomain:"inventory-control-portal.firebaseapp.com",projectId:"inventory-control-portal",storageBucket:"inventory-control-portal.firebasestorage.app",messagingSenderId:"925547075268",appId:"1:925547075268:web:e6ebce91417aa6885a1b91"},
     reports:{
       ic_open:{name:"Open Inquiries",desc:"Tickets not completed or closed.",collection:"tickets",
         filter:t=>!["completed","closed","done"].includes(String(t.status||"").toLowerCase()),
-        columns:[["division","Div"],["category","Category"],["productCode","Product"],["qty","Qty"],["priority","Priority"],["status","Status"],["notes","Notes"]]},
+        columns:[["createdAt","Opened"],["division","Div"],["category","Category"],["productCode","Product"],["qty","Qty"],["priority","Priority"],["status","Status"]]},
       ic_all:{name:"All Tickets",desc:"Every inquiry ticket.",collection:"tickets",
-        columns:[["division","Div"],["category","Category"],["productCode","Product"],["qty","Qty"],["priority","Priority"],["status","Status"]]}
+        columns:[["createdAt","Opened"],["division","Div"],["category","Category"],["productCode","Product"],["qty","Qty"],["priority","Priority"],["status","Status"]]}
     }},
   demand:{ name:"Demand Bin Verification", color:"#12968E",
     config:{apiKey:"AIzaSyAaP36f_ubgINso1pzVNAfcud_Zr4aBj3I",authDomain:"demand-bin-verification.firebaseapp.com",projectId:"demand-bin-verification",storageBucket:"demand-bin-verification.firebasestorage.app",messagingSenderId:"1052154132814",appId:"1:1052154132814:web:107a7c3e4c5903b7ae861f"},
     reports:{
-      bin_coverage:{name:"Bin Verification",desc:"Verified bins by division and window.",collection:"bundles",dateField:"date",
+      bin_count:{name:"Bin Count Report",desc:"Verified bins by division and window.",collection:"bundles",dateField:"date",
         columns:[["date","Date"],["division","Div"],["window","Window"],["bin","Bin"],["count","Count"],["status","Status"],["user","User"]]}
     }},
   returns:{ name:"Chapman Returns", color:"#6B4BB6",
@@ -429,10 +430,80 @@ const REPORT_SOURCES={
       ret_log:{name:"Returns Log",desc:"Processed returns.",collection:"rtp_returns",dateField:"date",
         columns:[["date","Date"],["division","Div"],["location","Location"],["qty","Qty"],["status","Status"],["reason","Reason"]]},
       rtp_queue:{name:"RTP Queue",desc:"Items awaiting return-to-pick.",collection:"rtp_queue",
+        columns:[["date","Date"],["division","Div"],["location","Location"],["qty","Qty"],["status","Status"]]},
+      rtp_cc:{name:"Cycle Count",desc:"Cycle-count records.",collection:"rtp_cycle_count",dateField:"date",
         columns:[["date","Date"],["division","Div"],["location","Location"],["qty","Qty"],["status","Status"]]}
     }}
 };
 let REPORT_RANGE={from:"",to:""};
+
+/* ── faithful report builders (reproduce each site's report) ── */
+const BUILDERS={};
+function toDay(v){ if(!v)return""; if(typeof v==="object"){ if(v.seconds)return new Date(v.seconds*1000).toISOString().slice(0,10); if(v.toDate)try{return v.toDate().toISOString().slice(0,10)}catch(e){} }
+  const s=String(v); if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10); const t=Date.parse(s); return isNaN(t)?s.slice(0,10):new Date(t).toISOString().slice(0,10); }
+function rnum(v){return parseFloat(v)||0;}
+function rptShift(r){ const sv=r.shift;
+  if(sv==="1st"||sv===1||sv==="1")return 1; if(sv==="2nd"||sv===2||sv==="2")return 2; if(sv==="weekend_ot"||sv===3||sv==="3")return 3;
+  const d=new Date(r.date||r.createdAt||""); if(isNaN(d))return 2; const day=d.getDay(); if(day===0||day===6)return 3;
+  const h=d.getHours()+d.getMinutes()/60; return (h>=6&&h<15.5)?1:2; }
+function rptHasSecondLoc(r){ const l=Array.isArray(r.secondaryLocations)?r.secondaryLocations:[]; return r.secondLocationFilled||l.length>0; }
+function rptErrBackorder(r){ return !!r.foundInShortedBin&&!rptHasSecondLoc(r); }
+function groupShort(rows){ const g={},out=[];
+  rows.forEach(r=>{ const day=toDay(r.date||r.createdAt||"");
+    const key=r.batchGroupId||("A::"+(r.productCode||"")+"::"+(r.shortedBin||"")+"::"+(r.picker||"")+"::"+day+"::"+(r.secondLocationFilled?"2":"")+"::"+(r.foundInShortedBin?"e":""));
+    if(!g[key]){g[key]=Object.assign({},r,{qtyShorted:0});out.push(g[key]);} g[key].qtyShorted+=rnum(r.qtyShorted); });
+  out.sort((a,b)=>String(toDay(b.date||b.createdAt)).localeCompare(String(toDay(a.date||a.createdAt)))); return out; }
+
+BUILDERS.shortageSummary=function(rows,src){
+  const total=rows.length;
+  const located2nd=rows.filter(r=>r.secondLocationFilled).length;
+  const erroneous=rows.filter(r=>r.foundInShortedBin).length;
+  const errBack=rows.filter(rptErrBackorder).length;
+  const notLoc=rows.filter(r=>!r.secondLocationFilled&&!r.foundInShortedBin).length;
+  const s1=rows.filter(r=>rptShift(r)===1).length, s2=rows.filter(r=>rptShift(r)===2).length, sw=rows.filter(r=>rptShift(r)===3).length;
+  const repl=rows.filter(r=>r.replenishedAfterPick).length;
+  const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
+  const byDiv={};
+  rows.forEach(r=>{ const d=r.division||"??"; (byDiv[d]=byDiv[d]||{total:0,s1:0,s2:0,sw:0,located:0,err:0,notLoc:0});
+    byDiv[d].total++; const sh=rptShift(r); if(sh===1)byDiv[d].s1++; else if(sh===3)byDiv[d].sw++; else byDiv[d].s2++;
+    if(r.foundInShortedBin)byDiv[d].err++; else if(r.secondLocationFilled)byDiv[d].located++; else byDiv[d].notLoc++; });
+  const stat=(l,v,c)=>`<div class="rpt-stat"><div class="rpt-v" style="color:${c}">${v}</div><div class="rpt-l">${l}</div></div>`;
+  const stats=[["Total Shortages",total,"#12202E"],["2nd Location Found",located2nd+" ("+pct(located2nd,total)+")","#188A5E"],
+    ["Erroneous Shorts",erroneous+" ("+pct(erroneous,total)+")","#B57A0E"],["Erroneous Backorders",errBack,"#CE3F3F"],
+    ["Not Located",notLoc,"#CE3F3F"],["1st Shift",s1,"#2A79C6"],["2nd Shift",s2,"#2A79C6"],["Weekend OT",sw,"#6B4BB6"],
+    ["Replenished After Pick",repl,"#188A5E"]].map(a=>stat(a[0],a[1],a[2])).join("");
+  const divRows=Object.keys(byDiv).sort().map(d=>{const x=byDiv[d];
+    return `<tr><td><b>${esc(d)}</b></td><td>${x.total}</td><td>${x.s1}</td><td>${x.s2}</td><td>${x.sw}</td><td style="color:#188A5E">${x.located}</td><td style="color:#B57A0E">${x.err}</td><td style="color:#CE3F3F">${x.notLoc}</td><td>${pct(x.err,x.total)}</td></tr>`;}).join("");
+  const grouped=groupShort(rows);
+  const shName=["","1st","2nd","Wknd OT"];
+  const detail=grouped.map(r=>`<tr><td>${esc(toDay(r.date||r.createdAt))}</td><td>${esc(r.division||"")}</td><td>${esc(r.productCode||"")}</td><td>${esc(r.shortedBin||"")}</td><td>${rnum(r.qtyShorted)}</td><td>${esc(r.picker||"")}</td><td>${esc(r.pickDemand||"")}</td><td>${shName[rptShift(r)]}</td></tr>`).join("");
+  const range=(REPORT_RANGE.from||REPORT_RANGE.to)?esc((REPORT_RANGE.from||"…")+" — "+(REPORT_RANGE.to||"…")):"All dates";
+  return `<div class="rpt">
+    <div class="rpt-head"><div><div class="rpt-org">C &amp; F Enterprises · 815 Chapman Warehouse</div>
+      <div class="rpt-title">Outbound Shortage Report</div><div class="rpt-subm">${range} · Total records: ${total}</div></div>
+      <div class="rpt-gen">Generated ${new Date().toLocaleString()}<br>815 Inventory Control</div></div>
+    <div class="rpt-sec">Executive Summary</div><div class="rpt-stats">${stats}</div>
+    <div class="rpt-sec">Division &amp; Shift Breakdown</div>
+    <table class="rpt-tbl"><thead><tr><th>Division</th><th>Total</th><th>1st</th><th>2nd</th><th>Wknd OT</th><th>2nd Loc</th><th>Erroneous</th><th>Not Located</th><th>Error Rate</th></tr></thead>
+      <tbody>${divRows}<tr class="rpt-total"><td>TOTAL</td><td>${total}</td><td>${s1}</td><td>${s2}</td><td>${sw}</td><td>${located2nd}</td><td>${erroneous}</td><td>${notLoc}</td><td>${pct(erroneous,total)}</td></tr></tbody></table>
+    <div class="rpt-sec">Shortage Detail — ${grouped.length} lines</div>
+    <table class="rpt-tbl"><thead><tr><th>Date</th><th>Div</th><th>Product</th><th>Bin</th><th>Qty Short</th><th>Picker</th><th>Pick Demand</th><th>Shift</th></tr></thead><tbody>${detail}</tbody></table>
+  </div>`;
+};
+const REPORT_CSS=`.rpt{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:12px}
+.rpt-head{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid #12202E;padding-bottom:10px;margin-bottom:14px}
+.rpt-org{font-size:9px;font-weight:700;color:#6b7280;letter-spacing:.1em;text-transform:uppercase}
+.rpt-title{font-size:20px;font-weight:700;color:#12202E}.rpt-subm{font-size:11px;color:#6b7280;margin-top:2px}
+.rpt-gen{font-size:10px;color:#6b7280;text-align:right;line-height:1.5}
+.rpt-sec{font-size:10px;font-weight:700;color:#374151;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:4px;margin:16px 0 8px}
+.rpt-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.rpt-stat{border:1px solid #d1d5db;border-radius:5px;padding:9px;background:#f9fafb;text-align:center}
+.rpt-v{font-size:18px;font-weight:700}.rpt-l{font-size:9px;color:#6b7280;margin-top:2px;text-transform:uppercase;letter-spacing:.05em}
+.rpt-tbl{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:6px}
+.rpt-tbl th{background:#12202E;color:#fff;text-align:left;padding:5px 7px;font-size:9px;text-transform:uppercase;letter-spacing:.04em}
+.rpt-tbl td{padding:4px 7px;border-bottom:1px solid #e5e7eb}
+.rpt-tbl tr:nth-child(even) td{background:#f6f8fa}
+.rpt-total td{background:#12202E !important;color:#fff;font-weight:700}`;
 
 /* safe storage — persists on the deployed site, falls back to memory in sandboxes */
 const mem={};
@@ -519,6 +590,7 @@ function renderActive(){
 }
 
 function boot(){
+  try{document.head.insertAdjacentHTML("beforeend","<style>"+REPORT_CSS+"</style>");}catch(e){}
   loadConfig(); loadTeam();
   const t=store.get("ichub_theme"); if(t) document.documentElement.dataset.theme=t;
   $("loginOrg").textContent=CONFIG.org; $("loginSub").textContent=CONFIG.sub+" · one front door";
@@ -1027,7 +1099,7 @@ async function sourceDb(key){
   }
   return _rptApps[key].firestore();
 }
-function inRange(v){ if(!REPORT_RANGE.from&&!REPORT_RANGE.to)return true; const s=String(v||"").slice(0,10);
+function inRange(v){ if(!REPORT_RANGE.from&&!REPORT_RANGE.to)return true; const s=toDay(v);
   if(REPORT_RANGE.from&&s<REPORT_RANGE.from)return false; if(REPORT_RANGE.to&&s>REPORT_RANGE.to)return false; return true; }
 function cellVal(v){
   if(v==null)return"";
@@ -1037,11 +1109,13 @@ function cellVal(v){
 async function runReport(appKey,reportId){
   const src=REPORT_SOURCES[appKey], def=src.reports[reportId];
   const fdb=await sourceDb(appKey);
-  const snap=await fdb.collection(def.collection).limit(2000).get();
+  const snap=await fdb.collection(def.collection).limit(3000).get();
   let rows=snap.docs.map(d=>({id:d.id,...d.data()}));
+  if(def.both){ try{ const s2=await fdb.collection(def.both).limit(3000).get();
+    rows=rows.concat(s2.docs.map(d=>({id:d.id,_archived:true,...d.data()}))); }catch(e){} }
   if(def.filter) rows=rows.filter(def.filter);
   if(def.dateField) rows=rows.filter(r=>inRange(r[def.dateField]));
-  if(def.dateField) rows.sort((a,b)=>String(b[def.dateField]||"").localeCompare(String(a[def.dateField]||"")));
+  if(def.dateField) rows.sort((a,b)=>toDay(b[def.dateField]).localeCompare(toDay(a[def.dateField])));
   return {def,src,rows};
 }
 async function runSelected(){
@@ -1069,19 +1143,19 @@ async function runSelected(){
 function renderResultCard(src,def,rows){
   const wrap=document.createElement("div"); wrap.className="card"; wrap.style.borderLeft="4px solid "+src.color;
   const rangeTxt=(REPORT_RANGE.from||REPORT_RANGE.to)?` · ${REPORT_RANGE.from||"…"} → ${REPORT_RANGE.to||"…"}`:"";
-  let head=`<div class="card-head"><div><h3>${esc(src.name)} — ${esc(def.name)}</h3>
-    <p class="hint">${rows.length} row${rows.length===1?"":"s"}${esc(rangeTxt)} · ${new Date().toLocaleString()}</p></div>
+  const head=`<div class="card-head"><div><h3>${esc(src.name)} — ${esc(def.name)}</h3>
+    <p class="hint">${rows.length} record${rows.length===1?"":"s"}${esc(rangeTxt)} · ${new Date().toLocaleString()}</p></div>
     <div style="display:flex;gap:8px" class="no-print">
       <button class="btn btn-ghost btn-sm" onclick="printResult(this)">Print</button>
-      <button class="btn btn-ghost btn-sm" onclick="csvResult(this)">CSV</button></div></div>`;
-  let table;
-  if(!rows.length){ table=`<div class="empty">No matching records${(REPORT_RANGE.from||REPORT_RANGE.to)?" in this date range":""}.</div>`; }
-  else{
-    const cols=def.columns;
-    table=`<div class="table-wrap" style="overflow-x:auto"><table><thead><tr>${cols.map(c=>`<th>${esc(c[1])}</th>`).join("")}</tr></thead>
+      ${def.build?"":`<button class="btn btn-ghost btn-sm" onclick="csvResult(this)">CSV</button>`}</div></div>`;
+  let body;
+  if(!rows.length){ body=`<div class="empty">No matching records${(REPORT_RANGE.from||REPORT_RANGE.to)?" in this date range":""}.</div>`; }
+  else if(def.build){ body=`<div style="overflow-x:auto">${BUILDERS[def.build](rows,src)}</div>`; }
+  else{ const cols=def.columns;
+    body=`<div class="table-wrap" style="overflow-x:auto"><table><thead><tr>${cols.map(c=>`<th>${esc(c[1])}</th>`).join("")}</tr></thead>
       <tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(cellVal(r[c[0]]))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   }
-  wrap.innerHTML=head+table;
+  wrap.innerHTML=head+body;
   wrap._data={src,def,rows};
   $("reportResults").appendChild(wrap);
 }
@@ -1097,18 +1171,18 @@ function renderResultError(src,def,msg){
 }
 function printResult(btn){
   const card=btn.closest(".card"); const {src,def,rows}=card._data;
-  const cols=def.columns;
   const w=window.open("","_blank"); if(!w)return toast("Allow pop-ups to print.");
-  w.document.write(`<html><head><title>${esc(src.name)} — ${esc(def.name)}</title>
-    <style>body{font-family:Arial,sans-serif;padding:24px;color:#111}h1{font-size:18px;margin:0 0 2px}
-    p{color:#555;font-size:12px;margin:0 0 16px}table{border-collapse:collapse;width:100%;font-size:12px}
-    th{background:#f1f5f9;text-align:left;padding:8px;border:1px solid #cbd5e1;font-size:11px;text-transform:uppercase}
-    td{padding:7px 8px;border:1px solid #e2e8f0}</style></head><body>
-    <h1>${esc(src.name)} — ${esc(def.name)}</h1><p>${rows.length} rows · ${new Date().toLocaleString()}</p>
-    <table><thead><tr>${cols.map(c=>`<th>${esc(c[1])}</th>`).join("")}</tr></thead>
-    <tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(cellVal(r[c[0]]))}</td>`).join("")}</tr>`).join("")}</tbody></table>
-    </body></html>`);
-  w.document.close(); w.focus(); setTimeout(()=>w.print(),300);
+  let content;
+  if(def.build){ content=BUILDERS[def.build](rows,src); }
+  else{ const cols=def.columns;
+    content=`<h1>${esc(src.name)} — ${esc(def.name)}</h1><p>${rows.length} rows · ${new Date().toLocaleString()}</p>
+    <table class="rpt-tbl"><thead><tr>${cols.map(c=>`<th>${esc(c[1])}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(cellVal(r[c[0]]))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  }
+  w.document.write(`<html><head><title>${esc(src.name)} — ${esc(def.name)}</title><style>
+    body{padding:24px}h1{font-size:18px;margin:0 0 2px;font-family:Arial}p{color:#555;font-size:12px;margin:0 0 14px;font-family:Arial}
+    ${REPORT_CSS}</style></head><body>${content}</body></html>`);
+  w.document.close(); w.focus(); setTimeout(()=>w.print(),350);
 }
 function csvResult(btn){
   const card=btn.closest(".card"); const {src,def,rows}=card._data; const cols=def.columns;
