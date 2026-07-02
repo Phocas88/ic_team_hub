@@ -572,13 +572,14 @@ function saveTeam(){store.set("ichub_team",JSON.stringify(TEAM));pushTeam()}
 
 /* ---------- cloud sync ---------- */
 let _cloudSubscribed=false, _permWarned=false;
+const DIAG={host:location.hostname,authAttempted:false,authOk:false,authUid:"",authError:"",configRead:false,teamRead:false,firestoreError:"",lastUpdate:""};
 function setCloudStatus(s){
   const el=$("cloudDot"); if(!el)return;
   const map={synced:["#3FBF7F","Synced with the team"],connecting:["#E4952B","Connecting…"],
     local:["#68788A","This device only (offline)"],
-    autherror:["#CE3F3F","Sign-in blocked — enable Anonymous auth in Firebase"],
-    permerror:["#CE3F3F","Permission denied — check Firestore rules are published"]};
-  const [c,t]=map[s]||["#CE3F3F","Sync error — check Firebase setup"]; el.style.background=c; el.title=t;
+    autherror:["#CE3F3F","Sign-in blocked — see Admin → Security for the exact error"],
+    permerror:["#CE3F3F","Permission denied — see Admin → Security for the exact error"]};
+  const [c,t]=map[s]||["#CE3F3F","Sync error — see Admin → Security"]; el.style.background=c; el.title=t;
 }
 function initFirebase(){
   if(typeof firebase==="undefined"||!firebase.initializeApp){ setCloudStatus("local"); return; }
@@ -589,33 +590,54 @@ function initFirebase(){
     // Only subscribe once we actually have an authenticated (anonymous) user —
     // subscribing before that races the auth token and looks like a permissions
     // error even when the rules are fine.
-    firebase.auth().onAuthStateChanged(user=>{ if(user) subscribeCloud(); });
+    firebase.auth().onAuthStateChanged(user=>{
+      if(user){ DIAG.authOk=true; DIAG.authUid=user.uid; DIAG.lastUpdate=new Date().toLocaleTimeString(); subscribeCloud(); }
+    });
+    DIAG.authAttempted=true;
     firebase.auth().signInAnonymously().catch(e=>{
+      DIAG.authError=(e&&e.code?e.code:"")+(e&&e.message?" — "+e.message:String(e));
+      DIAG.lastUpdate=new Date().toLocaleTimeString();
       console.warn("Anonymous sign-in failed — enable it in Firebase console → Authentication → Sign-in method → Anonymous.",e);
       setCloudStatus("autherror");
+      if(adminUnlocked&&adminTab==="security"&&currentView==="admin")renderAdminBody();
     });
-  }catch(e){ console.warn("Firebase init failed",e); setCloudStatus("local"); }
+  }catch(e){ DIAG.firestoreError="init: "+(e.message||String(e)); console.warn("Firebase init failed",e); setCloudStatus("local"); }
 }
 function subscribeCloud(){
   if(_cloudSubscribed)return; _cloudSubscribed=true;
   db.collection("meta").doc("config").onSnapshot(doc=>{
+    DIAG.configRead=true; DIAG.lastUpdate=new Date().toLocaleTimeString();
     if(doc.exists&&doc.data().data){ suppressPush=true; CONFIG=doc.data().data;
       store.set("ichub_config",JSON.stringify(CONFIG)); suppressPush=false; afterCloud(); }
     else pushConfig();
     setCloudStatus("synced");
-  }, e=>{ console.warn(e); setCloudStatus("permerror"); warnPerm(); });
+  }, e=>{ DIAG.firestoreError=(e.code?e.code:"")+" — "+(e.message||String(e)); DIAG.lastUpdate=new Date().toLocaleTimeString();
+    console.warn(e); setCloudStatus("permerror"); warnPerm(); refreshDiagIfOpen(); });
   db.collection("meta").doc("team").onSnapshot(doc=>{
+    DIAG.teamRead=true; DIAG.lastUpdate=new Date().toLocaleTimeString();
     if(doc.exists&&doc.data().data){ suppressPush=true; TEAM=doc.data().data;
       TEAM.members=TEAM.members||[];TEAM.assignments=TEAM.assignments||[];TEAM.issues=TEAM.issues||[];
       TEAM.labor=TEAM.labor||[];TEAM.schedule=TEAM.schedule||[];TEAM.guides=TEAM.guides||[];
       store.set("ichub_team",JSON.stringify(TEAM)); suppressPush=false; afterCloud(); }
     else pushTeam();
-  }, e=>{ console.warn(e); setCloudStatus("permerror"); warnPerm(); });
+  }, e=>{ DIAG.firestoreError=(e.code?e.code:"")+" — "+(e.message||String(e)); DIAG.lastUpdate=new Date().toLocaleTimeString();
+    console.warn(e); setCloudStatus("permerror"); warnPerm(); refreshDiagIfOpen(); });
+}
+function refreshDiagIfOpen(){ if(adminUnlocked&&adminTab==="security"&&currentView==="admin")renderAdminBody(); }
+function copyDiag(){
+  const t=["IC Operations Hub — cloud diagnostics","Hosted at: "+DIAG.host,"Firebase project: "+FIREBASE_CONFIG.projectId,
+    "Anonymous sign-in attempted: "+(DIAG.authAttempted?"yes":"no"),
+    "Anonymous sign-in succeeded: "+(DIAG.authOk?"yes (uid "+DIAG.authUid+")":"no"),
+    "Auth error: "+(DIAG.authError||"none"),"Config doc read: "+(DIAG.configRead?"yes":"no"),
+    "Team doc read: "+(DIAG.teamRead?"yes":"no"),"Firestore error: "+(DIAG.firestoreError||"none"),
+    "Last update: "+(DIAG.lastUpdate||"—")].join("\n");
+  try{ navigator.clipboard.writeText(t); toast("Diagnostics copied — paste them in chat."); }
+  catch(e){ toast("Couldn't copy automatically — select the table text manually."); }
 }
 function warnPerm(){ if(_permWarned)return; _permWarned=true;
-  toast("Cloud sync blocked — in Firebase, publish the Firestore rules and enable Anonymous auth (see Admin → Security)."); }
-function pushConfig(){ if(CLOUD_OK&&db&&!suppressPush) db.collection("meta").doc("config").set({data:CONFIG,updated:Date.now()}).catch(e=>{console.warn(e);setCloudStatus("permerror");warnPerm();}); }
-function pushTeam(){ if(CLOUD_OK&&db&&!suppressPush) db.collection("meta").doc("team").set({data:TEAM,updated:Date.now()}).catch(e=>{console.warn(e);setCloudStatus("permerror");warnPerm();}); }
+  toast("Cloud sync blocked — open Admin → Security to see the exact error and what to fix."); }
+function pushConfig(){ if(CLOUD_OK&&db&&!suppressPush) db.collection("meta").doc("config").set({data:CONFIG,updated:Date.now()}).catch(e=>{DIAG.firestoreError=(e.code?e.code:"")+" — "+(e.message||String(e));console.warn(e);setCloudStatus("permerror");warnPerm();refreshDiagIfOpen();}); }
+function pushTeam(){ if(CLOUD_OK&&db&&!suppressPush) db.collection("meta").doc("team").set({data:TEAM,updated:Date.now()}).catch(e=>{DIAG.firestoreError=(e.code?e.code:"")+" — "+(e.message||String(e));console.warn(e);setCloudStatus("permerror");warnPerm();refreshDiagIfOpen();}); }
 function afterCloud(){
   if($("loginView").style.display!=="none"){ renderLoginNames(); return; }
   if($("modal").classList.contains("open")) return;   // don't disrupt an open form
@@ -1374,14 +1396,42 @@ function renderAdminBody(){
       <button class="btn btn-signal btn-sm" style="margin-top:14px" onclick="addPerson()">+ Add team member</button></div>`;
   }
   else if(adminTab==="security"){
-    el.innerHTML=`<div class="card"><h3>Cloud sync status</h3>
-      <p class="hint" style="margin-bottom:10px">The dot next to the theme toggle shows live status. If it's not green:</p>
-      <table style="font-size:12.5px"><tbody>
-        <tr><td style="width:18px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#3FBF7F"></span></td><td>Synced — everything's live.</td></tr>
-        <tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#E4952B"></span></td><td>Connecting — wait a few seconds.</td></tr>
-        <tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#68788A"></span></td><td>Local only — Firebase scripts didn't load (offline, or a browser extension blocked them).</td></tr>
-        <tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#CE3F3F"></span></td><td><b>Red — sign-in blocked:</b> Firebase console → Authentication → Sign-in method → enable <b>Anonymous</b>.<br><b>Red — permission denied:</b> Firebase console → Firestore Database → Rules → publish the provided rules (and Storage → Rules for attachments).</td></tr>
-      </tbody></table></div>
+    const row=(l,v,ok)=>`<tr><td style="color:var(--muted);white-space:nowrap;padding-right:14px">${esc(l)}</td>
+      <td class="mono" style="word-break:break-all">${ok===false?`<span style="color:var(--danger);font-weight:600">${esc(v||'—')}</span>`:ok===true?`<span style="color:var(--ok);font-weight:600">${esc(v||'—')}</span>`:esc(v||'—')}</td></tr>`;
+    const diagText=[
+      "IC Operations Hub — cloud diagnostics",
+      "Hosted at: "+DIAG.host,
+      "Firebase project: "+FIREBASE_CONFIG.projectId,
+      "Anonymous sign-in attempted: "+(DIAG.authAttempted?"yes":"no"),
+      "Anonymous sign-in succeeded: "+(DIAG.authOk?"yes (uid "+DIAG.authUid+")":"no"),
+      "Auth error: "+(DIAG.authError||"none"),
+      "Config doc read: "+(DIAG.configRead?"yes":"no"),
+      "Team doc read: "+(DIAG.teamRead?"yes":"no"),
+      "Firestore error: "+(DIAG.firestoreError||"none"),
+      "Last update: "+(DIAG.lastUpdate||"—")
+    ].join("\n");
+    el.innerHTML=`<div class="card"><div class="card-head"><div><h3>Cloud diagnostics</h3>
+      <p class="hint">Live status from this browser's connection attempt — no console needed. Reopen this tab after a reload to refresh it.</p></div>
+      <button class="btn btn-ghost btn-sm" onclick="copyDiag()">Copy diagnostics</button></div>
+      <table style="font-size:12.5px;width:100%"><tbody>
+        ${row("Hosted at",DIAG.host)}
+        ${row("Firebase project",FIREBASE_CONFIG.projectId)}
+        ${row("Anonymous sign-in attempted",DIAG.authAttempted?"yes":"no")}
+        ${row("Anonymous sign-in succeeded",DIAG.authOk?"yes — uid "+DIAG.authUid:"no",DIAG.authOk)}
+        ${row("Auth error",DIAG.authError||"none",DIAG.authError?false:undefined)}
+        ${row("Config doc read (meta/config)",DIAG.configRead?"yes":"no",DIAG.configRead)}
+        ${row("Team doc read (meta/team)",DIAG.teamRead?"yes":"no",DIAG.teamRead)}
+        ${row("Firestore error",DIAG.firestoreError||"none",DIAG.firestoreError?false:undefined)}
+        ${row("Last update",DIAG.lastUpdate||"—")}
+      </tbody></table>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line2);font-size:12.5px;color:var(--ink2)">
+        ${!DIAG.authOk?`<b>Sign-in hasn't succeeded yet.</b> If "Auth error" above is blank even after a reload, the request may not be reaching Firebase at all —
+          check Authentication → Settings → <b>Authorized domains</b> includes exactly <span class="mono">${esc(DIAG.host)}</span> (no https://, no path).
+          If there's an error code above (e.g. <span class="mono">auth/operation-not-allowed</span>), Authentication → Sign-in method → Anonymous needs to be enabled.`
+        :DIAG.firestoreError?`<b>Signed in fine (uid ${esc(DIAG.authUid)}), but Firestore is rejecting reads.</b> The rules aren't actually live —
+          go to Firestore Database → Rules, confirm the text matches the rules I gave you, and make sure you clicked <b>Publish</b> (not just saved the editor).`
+        :`Looks connected. If the hub still seems out of sync, try a hard refresh (Ctrl+Shift+R).`}
+      </div></div>
     <div class="card"><h3>Admin password</h3>
       <p class="hint" style="margin-bottom:14px">Protects this Admin screen. Default is <span class="mono">1234</span> — change it here.</p>
       <div class="g2" style="max-width:460px">
