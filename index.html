@@ -278,6 +278,12 @@
     <!-- TEAM -->
     <div id="teamView" class="hidden"></div>
 
+    <!-- GUIDES -->
+    <div id="guidesView" class="hidden"></div>
+
+    <!-- SCHEDULE -->
+    <div id="scheduleView" class="hidden"></div>
+
     <!-- REPORTS -->
     <div id="reportsView" class="hidden">
       <div class="page-head"><div><div class="eyebrow">Reporting desk</div><h2>Run reports</h2>
@@ -439,6 +445,7 @@ const store={
 /* state */
 let CONFIG, TEAM, session=null, sel=new Set(), adminUnlocked=false, adminTab="links", teamTab="dashboard", selMember=null;
 let currentView="launch";
+let scheduleWeekStart=null;
 let db=null, CLOUD_OK=false, suppressPush=false;
 const $=id=>document.getElementById(id);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -453,9 +460,17 @@ function loadConfig(){
 function saveConfig(){store.set("ichub_config",JSON.stringify(CONFIG));pushConfig()}
 function loadTeam(){
   const s=store.get("ichub_team");
-  TEAM = s ? (()=>{try{return JSON.parse(s)}catch(e){return{members:[],assignments:[],issues:[]}}})() : {members:[],assignments:[],issues:[]};
+  TEAM = s ? (()=>{try{return JSON.parse(s)}catch(e){return{}}})() : {};
   TEAM.members=TEAM.members||[]; TEAM.assignments=TEAM.assignments||[]; TEAM.issues=TEAM.issues||[];
+  TEAM.labor=TEAM.labor||[]; TEAM.schedule=TEAM.schedule||[];
+  if(!Array.isArray(TEAM.guides)) TEAM.guides=defaultGuides();
 }
+function defaultGuides(){return [
+  {id:uid(),category:"Demand Bin Verification",title:"Download the Forward Demand CSV and load it",
+   body:"1. Open your WMS / reporting tool and run the Forward Demand export.\n2. Save it as a CSV to your computer (note where it downloads).\n3. Open the Demand Bin Verification app from Launch.\n4. Choose your division, then click Upload / Import CSV and pick the file you just saved.\n5. Confirm the demand window looks right, then work the bins the app lists.\n6. When done, publish so the dashboard and Apprise export include your division."},
+  {id:uid(),category:"Shortage & Over Pull",title:"Log a shortage",
+   body:"1. Open the Shortage & Over Pull Portal from Launch.\n2. Sign in with your portal PIN.\n3. Enter the product, bin, quantity short, and division.\n4. Save — it appears on the shortage report and IC verify sheet."}
+];}
 function saveTeam(){store.set("ichub_team",JSON.stringify(TEAM));pushTeam()}
 
 /* ---------- cloud sync ---------- */
@@ -484,6 +499,7 @@ function subscribeCloud(){
   db.collection("meta").doc("team").onSnapshot(doc=>{
     if(doc.exists&&doc.data().data){ suppressPush=true; TEAM=doc.data().data;
       TEAM.members=TEAM.members||[];TEAM.assignments=TEAM.assignments||[];TEAM.issues=TEAM.issues||[];
+      TEAM.labor=TEAM.labor||[];TEAM.schedule=TEAM.schedule||[];TEAM.guides=TEAM.guides||[];
       store.set("ichub_team",JSON.stringify(TEAM)); suppressPush=false; afterCloud(); }
     else pushTeam();
   }, e=>console.warn(e));
@@ -493,8 +509,13 @@ function pushTeam(){ if(CLOUD_OK&&db&&!suppressPush) db.collection("meta").doc("
 function afterCloud(){
   if($("loginView").style.display!=="none"){ renderLoginNames(); return; }
   if($("modal").classList.contains("open")) return;   // don't disrupt an open form
+  renderActive();
+}
+function renderActive(){
   if(currentView==="team") renderTeam();
   else if(currentView==="launch") renderLaunch();
+  else if(currentView==="guides") renderGuides();
+  else if(currentView==="admin"){ if($("adminBody")) renderAdminBody(); }
 }
 
 function boot(){
@@ -532,7 +553,7 @@ function enterApp(){
   $("barUser").textContent=session.name; $("barRole").textContent=r.label; $("barRole").style.background=r.color;
   $("barTitle").textContent=CONFIG.org;
   buildNav();
-  const first=["launch","team","reports","admin"].find(p=>session.pages.includes(p))||"launch";
+  const first=["launch","team","schedule","guides","reports","admin"].find(p=>session.pages.includes(p))||"launch";
   showView(first);
 }
 function logout(){store.del("ichub_session");session=null;sel.clear();adminUnlocked=false;selMember=null;
@@ -542,7 +563,7 @@ function logout(){store.del("ichub_session");session=null;sel.clear();adminUnloc
 function effPages(p){
   if(p&&Array.isArray(p.pages)) return p.pages;
   const role=(p&&p.role)||session.role;
-  const pg=["launch","team"];
+  const pg=["launch","team","schedule","guides"];
   if(CONFIG.reportRoles.includes(role)) pg.push("reports");
   if(CONFIG.adminRoles.includes(role)) pg.push("admin");
   return pg;
@@ -559,16 +580,18 @@ const canManageTeam=()=>CONFIG.teamManagerRoles.includes(session.role);
 
 /* nav */
 function buildNav(){
-  const order=[["launch","Launch"],["team","Team"],["reports","Reports"],["admin","Admin"]];
+  const order=[["launch","Launch"],["team","Team"],["schedule","Schedule"],["guides","How-To"],["reports","Reports"],["admin","Admin"]];
   const tabs=order.filter(([k])=>session.pages.includes(k));
   $("navtabs").innerHTML=tabs.map(([k,l])=>`<button class="navtab" data-view="${k}" onclick="showView('${k}')">${l}</button>`).join("");
 }
 function showView(v){
   currentView=v;
-  ["launch","team","reports","admin"].forEach(x=>$(x+"View").classList.toggle("hidden",x!==v));
+  ["launch","team","schedule","guides","reports","admin"].forEach(x=>$(x+"View").classList.toggle("hidden",x!==v));
   document.querySelectorAll(".navtab").forEach(t=>t.classList.toggle("active",t.dataset.view===v));
   if(v==="launch")renderLaunch();
   if(v==="team")renderTeam();
+  if(v==="schedule")renderSchedulePage();
+  if(v==="guides")renderGuides();
   if(v==="reports")renderReports();
   if(v==="admin")renderAdmin();
 }
@@ -619,10 +642,10 @@ function mName(id){const m=TEAM.members.find(x=>x.id===id);return m?m.name:"Unas
 function renderTeamManager(v){
   v.innerHTML=`
     <div class="page-head"><div><div class="eyebrow">Team monitor</div><h2>Assignments &amp; issues</h2>
-      <p>See who's on what, track status, and clear blockers. Add people in Team members.</p></div>
+      <p>See who's on what, track status, and clear blockers. Manage the roster in Admin → Team members.</p></div>
       <button class="btn btn-ghost btn-sm no-print" onclick="window.print()">Print daily report</button></div>
     <div class="subnav">
-      ${[["dashboard","Dashboard"],["assignments","Assignments"],["issues","Issues"],["members","Team members"]]
+      ${[["dashboard","Dashboard"],["assignments","Assignments"],["issues","Issues"],["labor","Time & labor"]]
         .map(([k,l])=>`<button class="${k===teamTab?'active':''}" onclick="setTeamTab('${k}')">${l}</button>`).join("")}
     </div>
     <div id="teamBody"></div>`;
@@ -666,12 +689,18 @@ function renderTeamBody(){
       <div id="allIssues"></div></div>`;
     renderIssueList("allIssues",[...TEAM.issues].sort((a,b)=>(b.ts||0)-(a.ts||0)),true);
   }
-  else if(teamTab==="members"){
-    el.innerHTML=`<div class="card"><div class="card-head"><div><h3>Team members</h3>
-      <p class="hint">Everyone here appears on the specialist self-service screen.</p></div>
-      <button class="btn btn-signal btn-sm no-print" onclick="openMemberModal()">+ Add member</button></div>
-      <div id="memberList"></div></div>`;
-    renderMemberList();
+  else if(teamTab==="labor"){
+    el.innerHTML=`
+      <div class="card"><div class="card-head"><div><h3>Log time &amp; labor</h3>
+        <p class="hint">Record who worked on what, how long, and the result — builds the daily labor picture.</p></div>
+        <button class="btn btn-signal btn-sm no-print" onclick="openLaborModal()">+ Log time</button></div>
+        <div class="statstrip" style="grid-template-columns:repeat(3,1fr)">
+          <div class="statbox"><div class="sl">Entries today</div><div class="sv">${TEAM.labor.filter(l=>l.date===td).length}</div></div>
+          <div class="statbox"><div class="sl">Hours today</div><div class="sv">${laborHours(TEAM.labor.filter(l=>l.date===td))}</div></div>
+          <div class="statbox"><div class="sl">People logged</div><div class="sv">${new Set(TEAM.labor.filter(l=>l.date===td).map(l=>l.memberId)).size}</div></div>
+        </div>
+        <div id="laborBody"></div></div>`;
+    renderLaborTable("laborBody",[...TEAM.labor].sort((a,b)=>String(b.date).localeCompare(String(a.date))||(b.ts||0)-(a.ts||0)),true);
   }
 }
 function renderAssignList(target,list,showDate){
@@ -728,10 +757,10 @@ function openAssignModal(id){
        const title=$("aTitle").value.trim(); if(!title)return toast("Give the assignment a name.");
        const data={title,memberId:$("aMember").value,priority:$("aPrio").value,status:$("aStatus").value,area:$("aArea").value.trim(),notes:$("aNotes").value.trim()};
        if(id){Object.assign(t,data)} else {TEAM.assignments.push({id:uid(),date:today(),...data})}
-       saveTeam();closeModal();renderTeamBody();toast(id?"Assignment saved":"Assignment added");
+       saveTeam();closeModal();renderActive();toast(id?"Assignment saved":"Assignment added");
      }}]);
 }
-function delAssign(id){TEAM.assignments=TEAM.assignments.filter(x=>x.id!==id);saveTeam();renderTeamBody();toast("Removed")}
+function delAssign(id){TEAM.assignments=TEAM.assignments.filter(x=>x.id!==id);saveTeam();renderActive();toast("Removed")}
 function openIssueModal(id){
   const i=id?TEAM.issues.find(x=>x.id===id):{title:"",memberId:"",severity:"Medium",status:"Open",area:"",notes:"",date:today()};
   modal(id?"Edit issue":"Log issue",
@@ -748,11 +777,11 @@ function openIssueModal(id){
        const title=$("iTitle").value.trim(); if(!title)return toast("Describe the issue.");
        const data={title,memberId:$("iMember").value,severity:$("iSev").value,status:$("iStatus").value,area:$("iArea").value.trim(),notes:$("iNotes").value.trim()};
        if(id){Object.assign(i,data)} else {TEAM.issues.push({id:uid(),date:today(),ts:Date.now(),...data})}
-       saveTeam();closeModal();renderTeamBody();toast(id?"Issue saved":"Issue logged");
+       saveTeam();closeModal();renderActive();toast(id?"Issue saved":"Issue logged");
      }}]);
 }
-function resolveIssue(id){const i=TEAM.issues.find(x=>x.id===id);if(i){i.status="Resolved";saveTeam();renderTeamBody();toast("Marked resolved")}}
-function delIssue(id){TEAM.issues=TEAM.issues.filter(x=>x.id!==id);saveTeam();renderTeamBody();toast("Removed")}
+function resolveIssue(id){const i=TEAM.issues.find(x=>x.id===id);if(i){i.status="Resolved";saveTeam();renderActive();toast("Marked resolved")}}
+function delIssue(id){TEAM.issues=TEAM.issues.filter(x=>x.id!==id);saveTeam();renderActive();toast("Removed")}
 function openMemberModal(id){
   const m=id?TEAM.members.find(x=>x.id===id):{name:"",role:"IC Specialist",shift:"",status:"Active"};
   modal(id?"Edit member":"Add member",
@@ -767,12 +796,12 @@ function openMemberModal(id){
        const name=$("mName").value.trim(); if(!name)return toast("Enter a name.");
        const data={name,role:$("mRole").value.trim()||"IC Specialist",shift:$("mShift").value.trim(),status:$("mStatus").value};
        if(id){Object.assign(m,data)} else {TEAM.members.push({id:uid(),...data})}
-       saveTeam();closeModal();renderTeamBody();toast(id?"Member saved":"Member added");
+       saveTeam();closeModal();renderActive();toast(id?"Member saved":"Member added");
      }}]);
 }
 function delMember(id){
   if(TEAM.assignments.some(a=>a.memberId===id)){ if(!confirm("This member has assignments. Remove anyway?"))return; }
-  TEAM.members=TEAM.members.filter(x=>x.id!==id);saveTeam();renderTeamBody();toast("Removed");
+  TEAM.members=TEAM.members.filter(x=>x.id!==id);saveTeam();renderActive();toast("Removed");
 }
 
 /* specialist self-service */
@@ -797,8 +826,11 @@ function renderTeamSpecialist(v){
   }
   const my=TEAM.assignments.filter(a=>a.memberId===selMember&&a.date===today());
   b.innerHTML=`
-    <div class="card"><div class="card-head"><div><h3>📋 ${esc(mName(selMember))} — today</h3><p class="hint">Tap a status to update it.</p></div></div>
+    <div class="card"><div class="card-head"><div><h3>📋 ${esc(mName(selMember))} — today</h3><p class="hint">Tap a status to update it. Only your manager can add assignments.</p></div></div>
       <div id="myList"></div></div>
+    <div class="card"><div class="card-head"><div><h3>⏱ Log my time</h3><p class="hint">Record what you worked on so it shows on the labor report.</p></div>
+      <button class="btn btn-signal btn-sm" onclick="specLabor()">+ Log time</button></div>
+      <div id="myLabor"></div></div>
     <div class="card"><div class="card-head"><div><h3>Raise an issue</h3><p class="hint">Blocked or waiting? Log it so your manager sees it.</p></div>
       <button class="btn btn-signal btn-sm" onclick="specIssue()">+ Log issue</button></div>
       <div id="myIssues"></div></div>`;
@@ -810,13 +842,14 @@ function renderTeamSpecialist(v){
     <div class="statusbtns">
       ${["Not Started","In Progress","Completed","Blocked"].map(s=>`<button class="sbtn ${t.status===s?statusClass(s):''}" onclick="myStatus('${t.id}','${s}')">${s==="Completed"?"✓ Done":s}</button>`).join("")}
     </div></div></div>`).join("");
+  renderLaborTable("myLabor",TEAM.labor.filter(l=>l.memberId===selMember&&l.date===today()),false);
   const mi=TEAM.issues.filter(i=>i.memberId===selMember&&i.status!=="Resolved");
   $("myIssues").innerHTML = mi.length ? mi.map(i=>`<div class="lrow"><div class="li"><h4>${esc(i.title)}</h4>
     <div class="chips">${sevBadge(i.severity)}${statusBadge(i.status)}</div></div></div>`).join("") : `<div class="empty">No open issues from you.</div>`;
 }
 function setSelMember(id){selMember=id;renderTeam()}
 function clearSelMember(){selMember=null;renderTeam()}
-function myStatus(id,s){const t=TEAM.assignments.find(x=>x.id===id);if(t){t.status=s;saveTeam();renderTeam();toast("Updated to "+s)}}
+function myStatus(id,s){const t=TEAM.assignments.find(x=>x.id===id);if(t){t.status=s;saveTeam();renderActive();toast("Updated to "+s)}}
 function specIssue(){
   modal("Raise an issue",
     `<div class="field"><label>Issue</label><input id="iTitle" placeholder="Scanner down, waiting on material…"></div>
@@ -827,9 +860,138 @@ function specIssue(){
      {label:"Log issue",cls:"btn-signal",fn:()=>{
        const title=$("iTitle").value.trim(); if(!title)return toast("Describe the issue.");
        TEAM.issues.push({id:uid(),date:today(),ts:Date.now(),title,memberId:selMember,severity:$("iSev").value,status:"Open",area:$("iArea").value.trim(),notes:$("iNotes").value.trim()});
-       saveTeam();closeModal();renderTeam();toast("Issue logged — manager notified on their board");
+       saveTeam();closeModal();renderActive();toast("Issue logged — manager notified on their board");
      }}]);
 }
+
+/* ---------- time & labor ---------- */
+function laborHours(list){const h=list.reduce((a,l)=>a+(parseFloat(l.hours)||0),0);return h%1===0?h:h.toFixed(2)}
+function renderLaborTable(target,list,manager){
+  const el=$(target); if(!el)return;
+  if(!list.length){el.innerHTML=`<div class="empty">No time logged yet.</div>`;return}
+  el.innerHTML=`<div class="table-wrap" style="overflow-x:auto"><table><thead><tr>
+    <th>Date</th><th>Person</th><th>Task</th><th>Hrs</th><th>Output</th><th>Notes</th>${manager?'<th></th>':''}</tr></thead>
+    <tbody>${list.map(l=>`<tr><td>${esc(l.date)}</td><td>${esc(mName(l.memberId))}</td><td>${esc(l.task||'')}</td>
+      <td class="mono">${esc(String(l.hours||''))}</td><td>${esc(l.output||'')}</td><td>${esc(l.notes||'')}</td>
+      ${manager?`<td><button class="btn btn-danger btn-sm no-print" onclick="delLabor('${l.id}')">✕</button></td>`:''}</tr>`).join("")}
+    </tbody></table></div>`;
+}
+function openLaborModal(id){
+  const l=id?TEAM.labor.find(x=>x.id===id):{memberId:"",date:today(),task:"",hours:"",output:"",notes:""};
+  modal(id?"Edit time entry":"Log time",
+   `<div class="g2">
+      <div class="field"><label>Team member</label><select id="lMember"><option value="">—</option>${memberOpts(l.memberId)}</select></div>
+      <div class="field"><label>Date</label><input id="lDate" type="date" value="${esc(l.date)}"></div>
+      <div class="field"><label>Task / assignment</label><input id="lTask" value="${esc(l.task)}" placeholder="Cycle count, shortage research…"></div>
+      <div class="field"><label>Hours</label><input id="lHours" type="number" min="0" step="0.25" value="${esc(String(l.hours))}" placeholder="e.g. 2.5"></div>
+    </div>
+    <div class="field"><label>Output / result</label><input id="lOutput" value="${esc(l.output)}" placeholder="Bins counted, lines cleared…"></div>
+    <div class="field"><label>Notes</label><textarea id="lNotes" placeholder="Anything worth noting…">${esc(l.notes)}</textarea></div>`,
+   [{label:"Cancel",cls:"btn-ghost",fn:closeModal},
+    {label:id?"Save":"Log",cls:"btn-signal",fn:()=>{
+      const memberId=$("lMember").value; if(!memberId)return toast("Pick a team member.");
+      const data={memberId,date:$("lDate").value||today(),task:$("lTask").value.trim(),hours:parseFloat($("lHours").value)||0,output:$("lOutput").value.trim(),notes:$("lNotes").value.trim()};
+      if(id){Object.assign(l,data)} else {TEAM.labor.push({id:uid(),ts:Date.now(),...data})}
+      saveTeam();closeModal();renderActive();toast(id?"Time updated":"Time logged");
+    }}]);
+}
+function specLabor(){
+  modal("Log my time",
+   `<div class="g2"><div class="field"><label>Task / assignment</label><input id="lTask" placeholder="What did you work on?"></div>
+      <div class="field"><label>Hours</label><input id="lHours" type="number" min="0" step="0.25" placeholder="e.g. 1.5"></div></div>
+    <div class="field"><label>Output / result</label><input id="lOutput" placeholder="Bins counted, lines cleared…"></div>
+    <div class="field"><label>Notes</label><textarea id="lNotes" placeholder="Optional"></textarea></div>`,
+   [{label:"Cancel",cls:"btn-ghost",fn:closeModal},
+    {label:"Log time",cls:"btn-signal",fn:()=>{
+      const task=$("lTask").value.trim(); const hours=parseFloat($("lHours").value)||0;
+      if(!task&&!hours)return toast("Add a task or hours.");
+      TEAM.labor.push({id:uid(),ts:Date.now(),memberId:selMember,date:today(),task,hours,output:$("lOutput").value.trim(),notes:$("lNotes").value.trim()});
+      saveTeam();closeModal();renderActive();toast("Time logged");
+    }}]);
+}
+function delLabor(id){TEAM.labor=TEAM.labor.filter(x=>x.id!==id);saveTeam();renderActive();toast("Removed")}
+
+/* ---------- schedule ---------- */
+const SHIFTS=["Off","1st","2nd","3rd","AM","PM","Vacation"];
+function mondayOf(dstr){const d=new Date(dstr+"T00:00:00");const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return d.toISOString().slice(0,10)}
+function addDays(dstr,n){const d=new Date(dstr+"T00:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)}
+function schedEntry(mid,date){return TEAM.schedule.find(s=>s.memberId===mid&&s.date===date)}
+function renderSchedulePage(){
+  if(!scheduleWeekStart)scheduleWeekStart=mondayOf(today());
+  const v=$("scheduleView"), mgr=canManageTeam();
+  const days=[0,1,2,3,4,5,6].map(i=>addDays(scheduleWeekStart,i));
+  const active=TEAM.members.filter(m=>m.status!=="Inactive");
+  const dayName=d=>new Date(d+"T00:00:00").toLocaleDateString([], {weekday:'short',month:'numeric',day:'numeric'});
+  const cell=(m,d)=>{const e=schedEntry(m.id,d);const label=e?((e.shift||'')+(e.area?' · '+e.area:'')):'';
+    const bg=e&&e.shift==='Vacation'?'var(--warn-bg)':e&&e.shift==='Off'?'var(--line2)':e?'var(--info-bg)':'transparent';
+    return `<td style="background:${bg};min-width:98px;cursor:${mgr?'pointer':'default'}" ${mgr?`onclick="openScheduleCell('${m.id}','${d}')"`:''}>${label?esc(label):(mgr?'<span style="color:var(--muted);font-size:12px">+ set</span>':'—')}</td>`;};
+  v.innerHTML=`
+    <div class="page-head"><div><div class="eyebrow">Schedule</div><h2>Team schedule</h2>
+      <p>${mgr?"Click a cell to assign a shift — set the week ahead so the team runs itself when you're out.":"Your row is highlighted. See your manager for changes."}</p></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="schedWeek(-7)">←</button>
+        <button class="btn btn-ghost btn-sm" onclick="schedThisWeek()">This week</button>
+        <button class="btn btn-ghost btn-sm" onclick="schedWeek(7)">→</button></div></div>
+    ${active.length?`<div class="card" style="overflow-x:auto"><table><thead><tr><th>Member</th>${days.map(d=>`<th>${dayName(d)}</th>`).join("")}</tr></thead>
+      <tbody>${active.map(m=>{const mine=m.name.toLowerCase()===session.name.toLowerCase();
+        return `<tr${mine?' style="outline:2px solid var(--signal);outline-offset:-2px"':''}><td><strong>${esc(m.name)}</strong><br><span style="font-size:11px;color:var(--muted)">${esc(m.shift||m.role||'')}</span></td>${days.map(d=>cell(m,d)).join("")}</tr>`;
+      }).join("")}</tbody></table></div>`:`<div class="empty"><strong>No team members yet</strong>Add the roster in Admin → Team members.</div>`}`;
+}
+function schedWeek(n){scheduleWeekStart=addDays(scheduleWeekStart||mondayOf(today()),n);renderSchedulePage()}
+function schedThisWeek(){scheduleWeekStart=mondayOf(today());renderSchedulePage()}
+function openScheduleCell(mid,date){
+  if(!canManageTeam())return;
+  const e=schedEntry(mid,date)||{shift:"",area:"",notes:""}, has=!!(e.shift||e.area||e.notes);
+  modal(mName(mid)+" · "+date,
+   `<div class="g2"><div class="field"><label>Shift</label><select id="sShift"><option value="">—</option>${SHIFTS.map(s=>`<option ${s===e.shift?'selected':''}>${s}</option>`).join("")}</select></div>
+      <div class="field"><label>Area / zone</label><input id="sArea" value="${esc(e.area)}" placeholder="Pick, dock, cycle…"></div></div>
+    <div class="field"><label>Notes</label><input id="sNotes" value="${esc(e.notes)}" placeholder="Optional"></div>`,
+   [{label:has?"Clear":"Cancel",cls:"btn-ghost",fn:()=>{
+      TEAM.schedule=TEAM.schedule.filter(s=>!(s.memberId===mid&&s.date===date));saveTeam();closeModal();renderSchedulePage();
+    }},
+    {label:"Save",cls:"btn-signal",fn:()=>{
+      const shift=$("sShift").value,area=$("sArea").value.trim(),notes=$("sNotes").value.trim();
+      TEAM.schedule=TEAM.schedule.filter(s=>!(s.memberId===mid&&s.date===date));
+      if(shift||area||notes)TEAM.schedule.push({id:uid(),memberId:mid,date,shift,area,notes});
+      saveTeam();closeModal();renderSchedulePage();toast("Schedule updated");
+    }}]);
+}
+
+/* ---------- how-to guides ---------- */
+function renderGuides(){
+  const v=$("guidesView"), mgr=canManageTeam();
+  const cats=[...new Set(TEAM.guides.map(g=>g.category||"General"))].sort();
+  v.innerHTML=`
+    <div class="page-head"><div><div class="eyebrow">How-To</div><h2>Guides &amp; procedures</h2>
+      <p>Step-by-step help for the team${mgr?' — add or edit as processes change.':'.'}</p></div>
+      ${mgr?`<button class="btn btn-signal btn-sm" onclick="openGuideModal()">+ Add guide</button>`:''}</div>
+    ${TEAM.guides.length?cats.map(c=>`<div class="card"><h3 style="margin-bottom:6px">${esc(c)}</h3>
+      ${TEAM.guides.filter(g=>(g.category||"General")===c).map(g=>`
+        <div style="border-top:1px solid var(--line2);padding:12px 0">
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+            <h4 style="font-size:15px;margin:0 0 6px">${esc(g.title)}</h4>
+            ${mgr?`<div style="display:flex;gap:6px;flex:none" class="no-print">
+              <button class="btn btn-ghost btn-sm" onclick="openGuideModal('${g.id}')">Edit</button>
+              <button class="btn btn-danger btn-sm" onclick="delGuide('${g.id}')">✕</button></div>`:''}
+          </div>
+          <div style="white-space:pre-wrap;font-size:13.5px;color:var(--ink2);line-height:1.65">${esc(g.body)}</div>
+        </div>`).join("")}</div>`).join(""):`<div class="empty"><strong>No guides yet</strong>${mgr?'Add the first how-to.':'Nothing here yet.'}</div>`}`;
+}
+function openGuideModal(id){
+  const g=id?TEAM.guides.find(x=>x.id===id):{title:"",category:"",body:""};
+  modal(id?"Edit guide":"Add guide",
+   `<div class="g2"><div class="field"><label>Title</label><input id="gTitle" value="${esc(g.title)}" placeholder="How to…"></div>
+      <div class="field"><label>Category</label><input id="gCat" value="${esc(g.category)}" placeholder="Demand Bin Verification…"></div></div>
+    <div class="field"><label>Steps</label><textarea id="gBody" style="min-height:180px" placeholder="1. First step\n2. Next step…">${esc(g.body)}</textarea></div>`,
+   [{label:"Cancel",cls:"btn-ghost",fn:closeModal},
+    {label:id?"Save":"Add",cls:"btn-signal",fn:()=>{
+      const title=$("gTitle").value.trim(); if(!title)return toast("Give the guide a title.");
+      const data={title,category:$("gCat").value.trim()||"General",body:$("gBody").value};
+      if(id){Object.assign(g,data)} else {TEAM.guides.push({id:uid(),...data})}
+      saveTeam();closeModal();renderGuides();toast(id?"Guide saved":"Guide added");
+    }}]);
+}
+function delGuide(id){if(!confirm("Delete this guide?"))return;TEAM.guides=TEAM.guides.filter(x=>x.id!==id);saveTeam();renderGuides();toast("Removed")}
 
 /* ---------- reports ---------- */
 function renderReports(){
@@ -972,7 +1134,7 @@ function renderAdmin(){
   v.innerHTML=`
     <div class="page-head"><div><div class="eyebrow">Admin</div><h2>Manage the hub</h2>
       <p>Set app links and gating, people and access, and security. Changes save to this browser; use Export to back up or move to a shared database.</p></div></div>
-    <div class="subnav">${[["links","Apps & gating"],["people","People & access"],["security","Security"],["export","Export / import"]]
+    <div class="subnav">${[["links","Apps & gating"],["members","Team members"],["people","People & access"],["security","Security"],["export","Export / import"]]
       .map(([k,l])=>`<button class="${k===adminTab?'active':''}" onclick="setAdminTab('${k}')">${l}</button>`).join("")}</div>
     <div id="adminBody"></div>`;
   renderAdminBody();
@@ -995,6 +1157,13 @@ function renderAdminBody(){
           <option value="yes" ${a.enabled?'selected':''}>On</option><option value="no" ${!a.enabled?'selected':''}>Off</option></select></td>
         <td><input value="${esc(a.password)}" placeholder="none" onchange="CONFIG.apps[${i}].password=this.value;saveConfig();toast('Saved')"></td>
       </tr>`).join("")}</tbody></table></div></div>`;
+  }
+  else if(adminTab==="members"){
+    el.innerHTML=`<div class="card"><div class="card-head"><div><h3>Team members</h3>
+      <p class="hint">The roster the whole hub uses — assignments, time logs, schedule, and the specialist screen all draw from this list.</p></div>
+      <button class="btn btn-signal btn-sm no-print" onclick="openMemberModal()">+ Add member</button></div>
+      <div id="memberList"></div></div>`;
+    renderMemberList();
   }
   else if(adminTab==="people"){
     const ro=r=>Object.entries(CONFIG.roles).map(([k,v])=>`<option value="${k}" ${k===r?'selected':''}>${v.label}</option>`).join("");
@@ -1035,7 +1204,7 @@ function renderAdminBody(){
 function openAccessModal(i){
   const p=CONFIG.people[i];
   const pages=effPages(p), apps=effApps(p);
-  const pageDefs=[["launch","Launch"],["team","Team"],["reports","Reports"],["admin","Admin (also needs the admin password)"]];
+  const pageDefs=[["launch","Launch"],["team","Team"],["schedule","Schedule"],["guides","How-To"],["reports","Reports"],["admin","Admin (also needs the admin password)"]];
   const cbx=(val,label,checked)=>`<label style="display:flex;align-items:center;gap:9px;font-weight:500;padding:2px 0">
     <input type="checkbox" value="${val}" ${checked?'checked':''} style="width:17px;height:17px;accent-color:var(--signal);flex:none"> ${label}</label>`;
   modal("Access · "+esc(p.name),
