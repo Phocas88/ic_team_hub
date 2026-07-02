@@ -281,7 +281,11 @@
     <!-- REPORTS -->
     <div id="reportsView" class="hidden">
       <div class="page-head"><div><div class="eyebrow">Reporting desk</div><h2>Run reports</h2>
-        <p>Pick reports across your applications and run them together. Each one opens as its own output.</p></div></div>
+        <p>Pick reports across your applications and run them together. Each result appears below with its own print and CSV.</p></div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="margin:0"><label>From</label><input id="rptFrom" type="date" style="width:150px" onchange="REPORT_RANGE.from=this.value"></div>
+          <div class="field" style="margin:0"><label>To</label><input id="rptTo" type="date" style="width:150px" onchange="REPORT_RANGE.to=this.value"></div>
+        </div></div>
       <div class="desk">
         <div id="reportCatalog"></div>
         <div class="runpanel">
@@ -296,6 +300,7 @@
           </div>
         </div>
       </div>
+      <div id="reportResults" style="margin-top:22px"></div>
     </div>
 
     <!-- ADMIN -->
@@ -383,11 +388,45 @@ const FIREBASE_CONFIG = {
   appId:"1:1080306198225:web:40e6e4a92e9080b30887f0"
 };
 
-/* Report adapters — wired to each app's database once files + keys are added. */
-const adapters={
-  shortage:{async run(){return{status:"not_connected"}}}, ic:{async run(){return{status:"not_connected"}}},
-  demand:{async run(){return{status:"not_connected"}}}, returns:{async run(){return{status:"not_connected"}}}
+/* ════════════ REPORT SOURCES — one read-connection per app's Firebase project ════════════
+   Reports query these live. Web API keys aren't secrets; each project's Firestore rules
+   still control access (the hub signs in anonymously to each where possible). */
+const REPORT_SOURCES={
+  shortage:{ name:"Shortage & Over Pull", color:"#E4952B",
+    config:{apiKey:"AIzaSyAbLkTbc0bpzqF5NyTLUi97kP1OnN_EyVw",authDomain:"new-picker-report-database.firebaseapp.com",projectId:"new-picker-report-database",storageBucket:"new-picker-report-database.firebasestorage.app",messagingSenderId:"579793542671",appId:"1:579793542671:web:4d2a75af117b35a6de0d7a"},
+    reports:{
+      short_summary:{name:"Shortage Summary",desc:"Active shortages.",collection:"shortages_active",dateField:"date",
+        columns:[["date","Date"],["division","Div"],["product","Product"],["bin","Bin"],["qty","Qty"],["shift","Shift"],["status","Status"],["packStation","Station"]]},
+      short_archive:{name:"Shortage Archive",desc:"Resolved / archived shortages.",collection:"shortages_archive",dateField:"date",
+        columns:[["date","Date"],["division","Div"],["product","Product"],["bin","Bin"],["qty","Qty"],["shift","Shift"],["status","Status"]]},
+      op_log:{name:"Over Pull Log",desc:"Over-pull entries with pack station.",collection:"overpull_active",dateField:"date",
+        columns:[["date","Date"],["division","Div"],["product","Product"],["bin","Bin"],["qty","Qty"],["packStation","Station"],["shift","Shift"]]}
+    }},
+  ic:{ name:"IC Portal", color:"#2A79C6",
+    config:{apiKey:"AIzaSyA1n5P6MFUojFsEBqlXaSLumNiChgAH1Lw",authDomain:"inventory-control-portal.firebaseapp.com",projectId:"inventory-control-portal",storageBucket:"inventory-control-portal.firebasestorage.app",messagingSenderId:"925547075268",appId:"1:925547075268:web:e6ebce91417aa6885a1b91"},
+    reports:{
+      ic_open:{name:"Open Inquiries",desc:"Tickets not completed or closed.",collection:"tickets",
+        filter:t=>!["completed","closed","done"].includes(String(t.status||"").toLowerCase()),
+        columns:[["division","Div"],["category","Category"],["productCode","Product"],["qty","Qty"],["priority","Priority"],["status","Status"],["notes","Notes"]]},
+      ic_all:{name:"All Tickets",desc:"Every inquiry ticket.",collection:"tickets",
+        columns:[["division","Div"],["category","Category"],["productCode","Product"],["qty","Qty"],["priority","Priority"],["status","Status"]]}
+    }},
+  demand:{ name:"Demand Bin Verification", color:"#12968E",
+    config:{apiKey:"AIzaSyAaP36f_ubgINso1pzVNAfcud_Zr4aBj3I",authDomain:"demand-bin-verification.firebaseapp.com",projectId:"demand-bin-verification",storageBucket:"demand-bin-verification.firebasestorage.app",messagingSenderId:"1052154132814",appId:"1:1052154132814:web:107a7c3e4c5903b7ae861f"},
+    reports:{
+      bin_coverage:{name:"Bin Verification",desc:"Verified bins by division and window.",collection:"bundles",dateField:"date",
+        columns:[["date","Date"],["division","Div"],["window","Window"],["bin","Bin"],["count","Count"],["status","Status"],["user","User"]]}
+    }},
+  returns:{ name:"Chapman Returns", color:"#6B4BB6",
+    config:{apiKey:"AIzaSyAg3wkAP60G92XLztIdrkaTttJgaBrb4wg",authDomain:"chapman-returns.firebaseapp.com",projectId:"chapman-returns",storageBucket:"chapman-returns.firebasestorage.app",messagingSenderId:"167708208865",appId:"1:167708208865:web:62e909798fc8ed482911a0"},
+    reports:{
+      ret_log:{name:"Returns Log",desc:"Processed returns.",collection:"rtp_returns",dateField:"date",
+        columns:[["date","Date"],["division","Div"],["location","Location"],["qty","Qty"],["status","Status"],["reason","Reason"]]},
+      rtp_queue:{name:"RTP Queue",desc:"Items awaiting return-to-pick.",collection:"rtp_queue",
+        columns:[["date","Date"],["division","Div"],["location","Location"],["qty","Qty"],["status","Status"]]}
+    }}
 };
+let REPORT_RANGE={from:"",to:""};
 
 /* safe storage — persists on the deployed site, falls back to memory in sandboxes */
 const mem={};
@@ -796,14 +835,13 @@ function specIssue(){
 function renderReports(){
   const cat=$("reportCatalog"); let html="";
   CONFIG.apps.forEach(a=>{
-    if(!canOpen(a))return; const grp=CONFIG.reports[a.key]; if(!grp)return;
-    const on=grp.connected;
+    if(!canOpen(a))return; const src=REPORT_SOURCES[a.key]; if(!src)return;
     html+=`<div class="rgroup" style="--tc:${a.color}"><div class="rgroup-head"><span class="spine"></span>
-      <h3>${esc(a.name)}</h3><span class="badge ${on?'b-green':'b-amber'}">${on?'Connected':'Not connected'}</span></div>`;
-    grp.items.forEach(it=>{const dis=!on,cid=`chk_${a.key}_${it.id}`;
-      html+=`<label class="rrow ${dis?'disabled':''}" for="${cid}"><input type="checkbox" id="${cid}" ${dis?'disabled':''}
-        onchange="toggleSel('${a.key}','${it.id}',this.checked)">
-        <div><div class="rname">${esc(it.name)}</div><div class="rdesc">${esc(it.desc)}</div></div></label>`;});
+      <h3>${esc(a.name)}</h3><span class="badge b-green">Connected</span></div>`;
+    Object.entries(src.reports).forEach(([id,r])=>{const cid=`chk_${a.key}_${id}`;
+      html+=`<label class="rrow" for="${cid}"><input type="checkbox" id="${cid}"
+        onchange="toggleSel('${a.key}','${id}',this.checked)">
+        <div><div class="rname">${esc(r.name)}</div><div class="rdesc">${esc(r.desc)}</div></div></label>`;});
     html+=`</div>`;
   });
   cat.innerHTML=html||`<div class="empty"><strong>No reports available</strong>The apps you can access have no reports listed.</div>`;
@@ -812,22 +850,111 @@ function renderReports(){
 const selKey=(a,i)=>a+"::"+i;
 function toggleSel(a,i,on){on?sel.add(selKey(a,i)):sel.delete(selKey(a,i));$("selCount").textContent=sel.size}
 function clearSel(){sel.clear();$("selCount").textContent=0;
-  document.querySelectorAll('#reportCatalog input[type=checkbox]').forEach(c=>c.checked=false);$("runLog").innerHTML=""}
+  document.querySelectorAll('#reportCatalog input[type=checkbox]').forEach(c=>c.checked=false);
+  $("runLog").innerHTML="";$("reportResults").innerHTML=""}
+
+/* one cached read-connection per source project */
+const _rptApps={};
+async function sourceDb(key){
+  const src=REPORT_SOURCES[key];
+  if(typeof firebase==="undefined"||!firebase.initializeApp) throw new Error("Firebase not loaded");
+  if(!_rptApps[key]){
+    let app; try{app=firebase.app("rpt_"+key)}catch(e){app=firebase.initializeApp(src.config,"rpt_"+key)}
+    _rptApps[key]=app;
+    try{ await app.auth().signInAnonymously(); }catch(e){ /* open rules, or anon disabled — try the read anyway */ }
+  }
+  return _rptApps[key].firestore();
+}
+function inRange(v){ if(!REPORT_RANGE.from&&!REPORT_RANGE.to)return true; const s=String(v||"").slice(0,10);
+  if(REPORT_RANGE.from&&s<REPORT_RANGE.from)return false; if(REPORT_RANGE.to&&s>REPORT_RANGE.to)return false; return true; }
+function cellVal(v){
+  if(v==null)return"";
+  if(typeof v==="object"){ if(v.seconds)return new Date(v.seconds*1000).toISOString().slice(0,10); return Array.isArray(v)?v.length+" item(s)":JSON.stringify(v).slice(0,60); }
+  return String(v);
+}
+async function runReport(appKey,reportId){
+  const src=REPORT_SOURCES[appKey], def=src.reports[reportId];
+  const fdb=await sourceDb(appKey);
+  const snap=await fdb.collection(def.collection).limit(2000).get();
+  let rows=snap.docs.map(d=>({id:d.id,...d.data()}));
+  if(def.filter) rows=rows.filter(def.filter);
+  if(def.dateField) rows=rows.filter(r=>inRange(r[def.dateField]));
+  if(def.dateField) rows.sort((a,b)=>String(b[def.dateField]||"").localeCompare(String(a[def.dateField]||"")));
+  return {def,src,rows};
+}
 async function runSelected(){
   if(!sel.size)return toast("Select at least one report.");
-  const log=$("runLog");log.innerHTML="";
+  const log=$("runLog");log.innerHTML=""; $("reportResults").innerHTML="";
+  let okCount=0;
   for(const k of [...sel]){
-    const [app,id]=k.split("::"); const item=CONFIG.reports[app].items.find(i=>i.id===id);
+    const [app,id]=k.split("::"); const def=REPORT_SOURCES[app].reports[id];
     const line=document.createElement("div");line.className="logitem";
-    line.innerHTML=`<span class="stchip st-run">Running</span><span>${esc(item.name)}</span>`;log.appendChild(line);
-    let res;try{res=await adapters[app].run(item)}catch(e){res={status:"error"}}
+    line.innerHTML=`<span class="stchip st-run">Running</span><span>${esc(def.name)}</span>`;log.appendChild(line);
     const chip=line.querySelector(".stchip");
-    if(res.status==="ok"){chip.className="stchip st-ok";chip.textContent="Opened"}
-    else if(res.status==="not_connected"){chip.className="stchip st-skip";chip.textContent="Not wired";
-      line.innerHTML+=`<span style="font-size:12px;color:var(--muted);margin-left:auto">upload app file</span>`}
-    else{chip.className="stchip st-err";chip.textContent="Error"}
+    try{
+      const {rows,src}=await runReport(app,id);
+      renderResultCard(src,def,rows);
+      chip.className="stchip st-ok";chip.textContent=rows.length+" rows"; okCount++;
+    }catch(e){
+      const msg=/permission/i.test(e.message)?"permission denied":(e.message||"error");
+      chip.className="stchip st-err";chip.textContent="Error";
+      line.innerHTML+=`<span style="font-size:12px;color:var(--danger);margin-left:auto">${esc(msg)}</span>`;
+      renderResultError(REPORT_SOURCES[app],def,e.message||"");
+    }
   }
-  toast("Run complete.");
+  toast(okCount?("Ran "+okCount+" report"+(okCount>1?"s":"")+"."):"Run finished with errors.");
+}
+function renderResultCard(src,def,rows){
+  const wrap=document.createElement("div"); wrap.className="card"; wrap.style.borderLeft="4px solid "+src.color;
+  const rangeTxt=(REPORT_RANGE.from||REPORT_RANGE.to)?` · ${REPORT_RANGE.from||"…"} → ${REPORT_RANGE.to||"…"}`:"";
+  let head=`<div class="card-head"><div><h3>${esc(src.name)} — ${esc(def.name)}</h3>
+    <p class="hint">${rows.length} row${rows.length===1?"":"s"}${esc(rangeTxt)} · ${new Date().toLocaleString()}</p></div>
+    <div style="display:flex;gap:8px" class="no-print">
+      <button class="btn btn-ghost btn-sm" onclick="printResult(this)">Print</button>
+      <button class="btn btn-ghost btn-sm" onclick="csvResult(this)">CSV</button></div></div>`;
+  let table;
+  if(!rows.length){ table=`<div class="empty">No matching records${(REPORT_RANGE.from||REPORT_RANGE.to)?" in this date range":""}.</div>`; }
+  else{
+    const cols=def.columns;
+    table=`<div class="table-wrap" style="overflow-x:auto"><table><thead><tr>${cols.map(c=>`<th>${esc(c[1])}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(cellVal(r[c[0]]))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  }
+  wrap.innerHTML=head+table;
+  wrap._data={src,def,rows};
+  $("reportResults").appendChild(wrap);
+}
+function renderResultError(src,def,msg){
+  const wrap=document.createElement("div"); wrap.className="card"; wrap.style.borderLeft="4px solid var(--danger)";
+  const perm=/permission/i.test(msg);
+  wrap.innerHTML=`<div class="card-head"><div><h3>${esc(src.name)} — ${esc(def.name)}</h3>
+    <p class="hint" style="color:var(--danger)">Couldn't read this report.</p></div></div>
+    <p style="font-size:13px;color:var(--ink2)">${perm
+      ? `The <strong>${esc(src.config.projectId)}</strong> project blocked the read. Enable <strong>Anonymous</strong> sign-in on that project (Authentication → Sign-in method), or allow read access to <span class="mono">${esc(def.collection)}</span> in its Firestore rules.`
+      : esc(msg||"Unknown error. Check the project config and that the collection exists.")}</p>`;
+  $("reportResults").appendChild(wrap);
+}
+function printResult(btn){
+  const card=btn.closest(".card"); const {src,def,rows}=card._data;
+  const cols=def.columns;
+  const w=window.open("","_blank"); if(!w)return toast("Allow pop-ups to print.");
+  w.document.write(`<html><head><title>${esc(src.name)} — ${esc(def.name)}</title>
+    <style>body{font-family:Arial,sans-serif;padding:24px;color:#111}h1{font-size:18px;margin:0 0 2px}
+    p{color:#555;font-size:12px;margin:0 0 16px}table{border-collapse:collapse;width:100%;font-size:12px}
+    th{background:#f1f5f9;text-align:left;padding:8px;border:1px solid #cbd5e1;font-size:11px;text-transform:uppercase}
+    td{padding:7px 8px;border:1px solid #e2e8f0}</style></head><body>
+    <h1>${esc(src.name)} — ${esc(def.name)}</h1><p>${rows.length} rows · ${new Date().toLocaleString()}</p>
+    <table><thead><tr>${cols.map(c=>`<th>${esc(c[1])}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(cellVal(r[c[0]]))}</td>`).join("")}</tr>`).join("")}</tbody></table>
+    </body></html>`);
+  w.document.close(); w.focus(); setTimeout(()=>w.print(),300);
+}
+function csvResult(btn){
+  const card=btn.closest(".card"); const {src,def,rows}=card._data; const cols=def.columns;
+  const esc2=s=>`"${String(s??"").replace(/"/g,'""')}"`;
+  const lines=[cols.map(c=>esc2(c[1])).join(",")].concat(rows.map(r=>cols.map(c=>esc2(cellVal(r[c[0]]))).join(",")));
+  const blob=new Blob([lines.join("\r\n")],{type:"text/csv"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download=`${src.config.projectId}_${def.collection}_${today()}.csv`; a.click(); URL.revokeObjectURL(a.href);
 }
 
 /* ---------- admin (password-gated) ---------- */
